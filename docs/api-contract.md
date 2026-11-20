@@ -41,9 +41,23 @@ The MSW mocks (`src/mocks/handlers.js`) and the hooks (`src/api/hooks.js`) follo
 - multipart/form-data, field `file`, jpeg/png/webp, at most 5 MB
 - 204
 
-`GET /api/returns/{returnId}`
-- 200: `{ returnId, orderNumber, status, refundMethod, estimatedRefundPaise, createdAt, items: [{ returnItemId, productName, quantity, reason, unitPricePaise }], history: [{ status, at }] }`
+`GET /api/returns/{returnId}` (polled every 15 s until `REFUNDED` or `REJECTED`)
+- 200: `{ returnId, orderNumber, status, refundMethod, estimatedRefundPaise, refundedPaise, rejectionReason, createdAt, items }`
+- `status`: `REQUESTED | APPROVED | IN_TRANSIT | RECEIVED | INSPECTED | PENDING_FINANCE | REFUND_PROCESSING | REFUND_FAILED | REFUNDED | REJECTED`
+- `items[]`: `{ returnItemId, productName, quantity, reason, unitPricePaise, status, grade, refundPaise }`
+  - `status`: `AWAITING_INSPECTION | ACCEPTED | REJECTED`
+  - `grade`: `A | B | C`, or `null` before inspection
+  - `refundPaise`: `null` before inspection. Grade C is already reduced to 50%.
+- `rejectionReason` is a customer-safe sentence or `null`. `refundedPaise` is `null` until `REFUNDED`.
+- The customer API must never include the flagged state or internal notes.
 - 404: `RETURN_NOT_FOUND`
+
+`GET /api/returns/{returnId}/timeline`
+- 200: `{ returnId, events: [{ status, at }] }`, oldest first, using the raw backend statuses. The UI shows `PENDING_FINANCE` and `REFUND_PROCESSING` as "Inspected".
+
+`GET /api/returns/{returnId}/label`
+- 200: `{ labelNumber, qrPngBase64, expiresAt }`. `qrPngBase64` is the PNG without the `data:` prefix.
+- The page asks for it only while the status is `APPROVED` or `IN_TRANSIT`.
 
 ## Open questions for the backend
 - Should `GET /api/returns/{id}` require proof of ownership (email or a signed token in the link)?

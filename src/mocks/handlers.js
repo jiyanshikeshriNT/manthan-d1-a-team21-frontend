@@ -1,9 +1,10 @@
 import { delay, http, HttpResponse } from 'msw'
-import { ORDERS, RETURNS, STAFF_USERS } from './data'
+import { ORDERS, STAFF_USERS } from './data'
+import { RETURNS, currentStatus, toDetail, toEvents, toLabel } from './returnsData'
 
 const err = (status, code, message) => HttpResponse.json({ error: { code, message } }, { status })
 
-// Simple per-session lookup throttle: 5 failures per minute, then 429.
+// Simple lookup throttle: 5 failures per minute, then 429.
 let failures = []
 const throttled = () => {
   const now = Date.now()
@@ -12,7 +13,20 @@ const throttled = () => {
 }
 
 const idempotent = new Map() // Idempotency-Key -> returnId
-let seq = 4816
+let seq = 4830
+
+/** Finds a return and starts the live clock the first time a live return is opened. */
+function find(returnId) {
+  const rec = RETURNS.get(returnId)
+  if (rec?.live) rec.liveStart ??= Date.now()
+  return rec
+}
+
+const summary = (rec) => ({
+  returnId: rec.returnId,
+  status: currentStatus(rec),
+  items: rec.items.map(({ returnItemId, orderItemId }) => ({ returnItemId, orderItemId })),
+})
 
 export const handlers = [
   http.post('/api/auth/login', async ({ request }) => {
@@ -40,7 +54,9 @@ export const handlers = [
     await delay(600)
     const order = ORDERS.find((o) => o.orderId === params.orderId)
     if (!order) return err(404, 'ORDER_NOT_FOUND', 'Order not found.')
-    const returned = new Set([...RETURNS.values()].filter((r) => r.orderId === order.orderId).flatMap((r) => r.items.map((i) => i.orderItemId)))
+    const returned = new Set(
+      [...RETURNS.values()].filter((r) => r.orderId === order.orderId).flatMap((r) => r.items.map((i) => i.orderItemId)),
+    )
     const items = order.items.map((i) =>
       returned.has(i.orderItemId)
         ? { ...i, eligible: false, returnableQuantity: 0, reasonCode: 'ALREADY_RETURNED', message: 'You’ve already started a return for this item.', daysLeft: null }
@@ -59,25 +75,31 @@ export const handlers = [
     if (!order) return err(404, 'ORDER_NOT_FOUND', 'Order not found.')
 
     const returnId = `RET-2026-${String(++seq).padStart(5, '0')}`
-    const now = new Date().toISOString()
-    const items = body.items.map((i, n) => {
-      const oi = order.items.find((x) => x.orderItemId === i.orderItemId)
-      return { returnItemId: `${returnId}-${n + 1}`, orderItemId: i.orderItemId, productName: oi.productName, quantity: i.quantity, reason: i.reason, unitPricePaise: oi.unitPricePaise }
-    })
-    const ret = {
+    const now = Date.now()
+    const rec = {
       returnId,
       orderId: order.orderId,
       orderNumber: order.orderNumber,
       status: 'APPROVED',
       refundMethod: body.refundMethod,
-      estimatedRefundPaise: items.reduce((s, i) => s + i.unitPricePaise * i.quantity, 0),
-      createdAt: now,
-      items,
-      history: [{ status: 'REQUESTED', at: now }, { status: 'APPROVED', at: now }],
+      createdMs: now,
+      live: true,
+      liveStart: now,
+      items: body.items.map((i, n) => {
+        const oi = order.items.find((x) => x.orderItemId === i.orderItemId)
+        return {
+          returnItemId: `${returnId}-${n + 1}`,
+          orderItemId: i.orderItemId,
+          productName: oi.productName,
+          quantity: i.quantity,
+          unitPricePaise: oi.unitPricePaise,
+          reason: i.reason,
+        }
+      }),
     }
-    RETURNS.set(returnId, ret)
+    RETURNS.set(returnId, rec)
     if (key) idempotent.set(key, returnId)
-    return HttpResponse.json(summary(ret), { status: 201 })
+    return HttpResponse.json(summary(rec), { status: 201 })
   }),
 
   http.post('/api/returns/:returnId/items/:returnItemId/photo', async () => {
@@ -85,31 +107,24 @@ export const handlers = [
     return new HttpResponse(null, { status: 204 })
   }),
 
+  http.get('/api/returns/:returnId/timeline', async ({ params }) => {
+    await delay(250)
+    const rec = find(params.returnId)
+    if (!rec) return err(404, 'RETURN_NOT_FOUND', 'Return not found.')
+    return HttpResponse.json({ returnId: rec.returnId, events: toEvents(rec) })
+  }),
+
+  http.get('/api/returns/:returnId/label', async ({ params }) => {
+    await delay(300)
+    const rec = find(params.returnId)
+    if (!rec) return err(404, 'RETURN_NOT_FOUND', 'Return not found.')
+    return HttpResponse.json(toLabel(rec))
+  }),
+
   http.get('/api/returns/:returnId', async ({ params }) => {
     await delay(400)
-    const ret = RETURNS.get(params.returnId) ?? (params.returnId === 'RET-2026-04817' ? DEMO_RETURN : null)
-    if (!ret) return err(404, 'RETURN_NOT_FOUND', 'Return not found.')
-    const { orderId: _o, ...detail } = ret
-    return HttpResponse.json(detail)
+    const rec = find(params.returnId)
+    if (!rec) return err(404, 'RETURN_NOT_FOUND', 'Return not found.')
+    return HttpResponse.json(toDetail(rec))
   }),
 ]
-
-function summary(r) {
-  return { returnId: r.returnId, status: r.status, items: r.items.map(({ returnItemId, orderItemId }) => ({ returnItemId, orderItemId })) }
-}
-
-const t = (d) => new Date(Date.now() - d * 86_400_000).toISOString()
-const DEMO_RETURN = {
-  returnId: 'RET-2026-04817',
-  orderId: 'ord_demo',
-  orderNumber: 'RR-099812',
-  status: 'IN_TRANSIT',
-  refundMethod: 'ORIGINAL',
-  estimatedRefundPaise: 194800,
-  createdAt: t(2),
-  items: [
-    { returnItemId: 'RET-2026-04817-1', orderItemId: 'x1', productName: 'Linen shirt, white, size L', quantity: 1, reason: 'WRONG_SIZE', unitPricePaise: 129900 },
-    { returnItemId: 'RET-2026-04817-2', orderItemId: 'x2', productName: 'Ceramic mug set', quantity: 1, reason: 'DAMAGED', unitPricePaise: 64900 },
-  ],
-  history: [{ status: 'REQUESTED', at: t(2) }, { status: 'APPROVED', at: t(2) }, { status: 'IN_TRANSIT', at: t(1) }],
-}

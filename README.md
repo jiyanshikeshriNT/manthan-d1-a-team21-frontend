@@ -24,7 +24,13 @@ npm run dev                  # http://localhost:5173
 ### Mock data (`VITE_USE_MOCKS=true`)
 - **Order with a mix of returnable items:** `RR-100245` / `priya.sharma@example.com`
 - **Order with nothing returnable:** `RR-100310` / `arjun.mehta@example.com`
-- **Example return status page:** `/return/RET-2026-04817`
+- **Return status pages, one per state:**
+  - `/return/RET-2026-04817`: in transit, with a label that expires in 2 days
+  - `/return/RET-2026-04820`: refunded, with a Grade C item
+  - `/return/RET-2026-04821`: rejected
+  - `/return/RET-2026-04822`: refund failed, retrying
+  - `/return/RET-2026-04823`: pending finance (shows as Inspected)
+  - `/return/RET-2026-04824`: live. Starts at Approved and moves one step every 20 seconds, so you can watch polling work. A return you create in the wizard behaves the same way.
 - **Staff logins:** `warehouse@returnright.test`, `finance@returnright.test`, `manager@returnright.test`. The password for all three is in `src/mocks/data.js`.
 
 Some embedded browsers block service workers. The app then shows a notice and calls the real API instead.

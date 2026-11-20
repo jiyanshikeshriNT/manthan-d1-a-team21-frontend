@@ -36,11 +36,21 @@ This file is the shared team reference. It is checked in. Personal preferences d
   - State lives in one `useReducer` (`wizardState.js`), so data survives Back.
   - Steps are in `steps/`.
   - Tests are in `__tests__/`.
+- `src/pages/customer/ReturnDetailPage.jsx` + `return-detail/`: status page.
+  - Polls `useReturn` every 15 s until a final status. TanStack pauses it while the tab is hidden and refetches on focus.
+  - The timeline reloads when the status changes (its query key includes the status).
+  - `LabelCard` prints only the label through the `.print-label` rules in `index.css`.
+  - `ItemsTable` shows status, grade and refund, with the Grade C 50% note.
+- `src/components/StatusTimeline.jsx`: vertical on mobile, horizontal from `md`. It draws the steps from `domain/timelineModel.js` (`buildTimeline`, pure and tested).
 - `src/domain/`:
   - `returnStatus.js`: the state machine.
   - `returns.js`: reasons, refund methods, ineligibility badges and microcopy, photo limits.
 - `src/lib/format.js`: `formatINR(paise)`, date formatters, `cx()`.
 - `src/styles/index.css`: Tailwind `@theme` tokens. This is the only place colour values are defined.
+
+## Motion
+- Entrances are one-shot and short (`animate-fade-up`, `animate-pop-in`, `animate-grow-x/y`, `animate-pulse-ring` for the current step), all defined in the `@theme` block of `index.css`.
+- `prefers-reduced-motion` switches them off globally. New animations must go through those tokens, never custom per-component keyframes.
 
 ## Conventions
 - Money is integer paise everywhere. Display it only through `formatINR`.
@@ -55,8 +65,12 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - APPROVED → IN_TRANSIT
 - IN_TRANSIT → RECEIVED
 - RECEIVED → INSPECTED
-- INSPECTED → REFUNDED | REJECTED
+- INSPECTED → PENDING_FINANCE | REFUND_PROCESSING | REJECTED
+- PENDING_FINANCE → REFUND_PROCESSING | REJECTED
+- REFUND_PROCESSING → REFUNDED | REFUND_FAILED
+- REFUND_FAILED → REFUND_PROCESSING (retry)
 - REFUNDED and REJECTED are final.
+- Customers see PENDING_FINANCE and REFUND_PROCESSING as "Inspected", and REFUND_FAILED as "Refund retrying" (`toCustomerStep`, `StatusBadge`, `buildTimeline`). The customer API never exposes the flagged state.
 - Every state change is written to the audit log by the backend.
 - Never offer a transition in the UI that is not in `TRANSITIONS`.
 

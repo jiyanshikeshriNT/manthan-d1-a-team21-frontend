@@ -13,11 +13,18 @@ async function enableMocks() {
   try {
     const { worker } = await import('./mocks/browser')
     await worker.start({ onUnhandledRequest: 'bypass', quiet: true })
-  } catch (e) {
-    // Some embedded browsers block service workers. Render anyway; API calls then go to the real backend.
-    console.warn('[mocks] MSW could not start, using the real API instead.', e)
-    const { toast } = await import('./components/toast/toastStore')
-    toast.info('Mock API unavailable in this browser', 'Requests go to the real backend on :8080.')
+  } catch {
+    // Some embedded browsers block service workers. Answer /api calls with the same handlers via fetch.
+    const [{ getResponse }, { handlers }] = await Promise.all([import('msw'), import('./mocks/handlers')])
+    const realFetch = window.fetch.bind(window)
+    window.fetch = async (input, init) => {
+      const req = new Request(input, init)
+      if (new URL(req.url).pathname.startsWith('/api/')) {
+        const res = await getResponse(handlers, req)
+        if (res) return res
+      }
+      return realFetch(req)
+    }
   }
 }
 

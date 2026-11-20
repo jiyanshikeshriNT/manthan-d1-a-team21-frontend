@@ -1,6 +1,6 @@
 import { useLocation, useParams } from 'react-router'
-import { FileQuestion } from 'lucide-react'
-import { useReturn } from '../../api/hooks'
+import { FileQuestion, RefreshCw } from 'lucide-react'
+import { POLL_MS, useReturn, useReturnTimeline } from '../../api/hooks'
 import Card from '../../components/ui/Card'
 import Alert from '../../components/ui/Alert'
 import Spinner from '../../components/ui/Spinner'
@@ -8,15 +8,22 @@ import EmptyState from '../../components/ui/EmptyState'
 import Button from '../../components/ui/Button'
 import StatusBadge from '../../components/ui/StatusBadge'
 import StatusTimeline from '../../components/StatusTimeline'
-import { reasonLabel, refundMethodLabel } from '../../domain/returns'
-import { formatDate, formatINR } from '../../lib/format'
+import { isFinal } from '../../domain/returnStatus'
+import { refundMethodLabel } from '../../domain/returns'
+import { buildTimeline } from '../../domain/timelineModel'
+import { formatDate, formatTime } from '../../lib/format'
+import LabelCard from './return-detail/LabelCard'
+import ItemsTable from './return-detail/ItemsTable'
+import StatusMessage from './return-detail/StatusMessage'
 
 export default function ReturnDetailPage() {
   const { returnId } = useParams()
   const { state } = useLocation()
-  const { data, isPending, error } = useReturn(returnId)
+  const ret = useReturn(returnId)
+  const { data } = ret
+  const timeline = useReturnTimeline(returnId, data?.status)
 
-  if (isPending) {
+  if (ret.isPending) {
     return (
       <div className="flex justify-center py-16 text-muted">
         <Spinner size="lg" label="Loading your return" />
@@ -24,66 +31,67 @@ export default function ReturnDetailPage() {
     )
   }
 
-  if (error) {
+  if (ret.isError && !data) {
+    const notFound = ret.error.status === 404
     return (
       <EmptyState
         icon={FileQuestion}
-        title={error.status === 404 ? 'We couldn’t find that return' : 'We couldn’t load this return'}
-        description={error.status === 404 ? 'Check the link in your confirmation email.' : 'Please try again in a moment.'}
+        title={notFound ? 'We couldn’t find that return' : 'We couldn’t load this return'}
+        description={notFound ? 'Check the link in your confirmation email.' : 'Please try again in a moment.'}
         action={<Button as="link" to="/">Go to home</Button>}
       />
     )
   }
 
+  const active = buildTimeline(data.status).find((s) => s.message && s.state !== 'upcoming')
+  const final = isFinal(data.status)
+
   return (
-    <div className="mx-auto grid max-w-3xl gap-6">
+    <div className="mx-auto grid max-w-5xl gap-6">
+      {/* Screen readers hear status changes that arrive through polling. */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{active?.message}</p>
+
       {state?.justCreated && (
-        <Alert tone="success" title="Return requested">
+        <Alert tone="success" title="Return requested" className="animate-fade-up">
           Your request is in. Bookmark this page to follow its progress, from shipping to refund.
         </Alert>
       )}
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
+      <header className="flex flex-wrap items-start justify-between gap-4 animate-fade-up">
+        <div className="grid gap-1.5">
           <p className="text-sm text-muted">
             Order <span className="font-mono">{data.orderNumber}</span> · requested {formatDate(data.createdAt)}
           </p>
           <h1 className="text-2xl font-semibold">
             Return <span className="font-mono">{data.returnId}</span>
           </h1>
+          <p className="text-sm text-muted">
+            Refund to <strong className="font-semibold text-ink">{refundMethodLabel(data.refundMethod)}</strong>
+          </p>
         </div>
-        <StatusBadge status={data.status} className="px-3 py-1 text-sm" />
+        <div key={data.status} className="animate-pop-in">
+          <StatusBadge status={data.status} className="px-3 py-1.5 text-sm" />
+        </div>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-[1fr_18rem]">
-        <Card aria-labelledby="progress-h">
-          <h2 id="progress-h" className="mb-4 font-semibold">Progress</h2>
-          <StatusTimeline status={data.status} history={data.history} />
-        </Card>
+      <StatusMessage data={data} />
 
-        <div className="grid content-start gap-6">
-          <Card aria-labelledby="refund-h" className="grid gap-3">
-            <h2 id="refund-h" className="font-semibold">Refund</h2>
-            <dl className="grid gap-2 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-muted">Method</dt><dd className="font-medium">{refundMethodLabel(data.refundMethod)}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted">Estimated</dt><dd className="font-semibold tabular">{formatINR(data.estimatedRefundPaise)}</dd></div>
-            </dl>
-            <p className="text-xs text-muted">Final amount is set after inspection. Grade C items are refunded at 50%.</p>
-          </Card>
+      <Card aria-labelledby="progress-h" className="animate-fade-up" style={{ animationDelay: '120ms' }}>
+        <h2 id="progress-h" className="mb-5 font-semibold">Progress</h2>
+        <StatusTimeline status={data.status} events={timeline.data?.events} />
+      </Card>
 
-          <Card aria-labelledby="items-h" className="grid gap-3">
-            <h2 id="items-h" className="font-semibold">Items</h2>
-            <ul className="grid gap-3 text-sm">
-              {data.items.map((i) => (
-                <li key={i.returnItemId} className="grid gap-0.5">
-                  <span className="font-medium">{i.productName}</span>
-                  <span className="text-muted">Qty {i.quantity} · {reasonLabel(i.reason)}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_19rem]">
+        <ItemsTable items={data.items} estimatedRefundPaise={data.estimatedRefundPaise} status={data.status} />
+        <LabelCard returnId={data.returnId} status={data.status} />
       </div>
+
+      {!final && (
+        <p className="flex items-center justify-center gap-2 text-sm text-muted">
+          <RefreshCw className={ret.isFetching ? 'size-3.5 animate-spin' : 'size-3.5'} aria-hidden="true" />
+          Updates automatically every {POLL_MS / 1000} seconds · last checked {formatTime(ret.dataUpdatedAt)}
+        </p>
+      )}
     </div>
   )
 }

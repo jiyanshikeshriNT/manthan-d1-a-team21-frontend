@@ -9,6 +9,13 @@ export function formatINR(paise) {
 const date = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 const dateTime = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 
+const time = new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+
+export const formatTime = (ms) => (ms ? time.format(new Date(ms)) : '—')
+
+/** Whole days from now until `iso` (negative once passed). */
+export const daysUntil = (iso) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
+
 export const formatDate = (iso) => (iso ? date.format(new Date(iso)) : '—')
 export const formatDateTime = (iso) => (iso ? dateTime.format(new Date(iso)) : '—')
 

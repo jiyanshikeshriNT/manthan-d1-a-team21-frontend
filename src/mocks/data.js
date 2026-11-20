@@ -36,6 +36,3 @@ export const ORDERS = [
     ],
   },
 ]
-
-/** In-memory returns created during the session, keyed by returnId. */
-export const RETURNS = new Map()
