@@ -1,19 +1,11 @@
-import PagePlaceholder from '../../components/PagePlaceholder'
-import { FINANCE_APPROVAL_THRESHOLD_INR } from '../../domain/returnStatus'
+import { Landmark } from 'lucide-react'
+import EmptyState from '../../components/ui/EmptyState'
 
 export default function ApprovalsPage() {
   return (
-    <div className="stack">
-      <h1>Refund approvals</h1>
-      <PagePlaceholder
-        title="To build"
-        items={[
-          `Queue of refunds above ₹${FINANCE_APPROVAL_THRESHOLD_INR.toLocaleString('en-IN')}`,
-          'Detail panel with inspection grade and customer flags',
-          'Approve & pay: sends an Idempotency-Key to the API',
-          'Ledger rows for the selected return',
-        ]}
-      />
+    <div className="grid gap-6">
+      <h1 className="text-2xl font-semibold">Refund approvals</h1>
+      <EmptyState icon={Landmark} title="Coming next" description="Refunds above ₹10,000 waiting for approval will appear here. This screen is built in a later step." />
     </div>
   )
 }
