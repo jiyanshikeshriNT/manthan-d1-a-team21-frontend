@@ -14,7 +14,7 @@ dist-ssr
 
 # Personal Claude Code files
 CLAUDE.local.md
-.claude/settings.local.json
+.claude/
 
 # Editor directories and files
 .vscode/*

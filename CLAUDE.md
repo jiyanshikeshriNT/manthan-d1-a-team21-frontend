@@ -113,7 +113,7 @@ Use in this order for category return rates, top reasons and cycle-time charts: 
 
 ## Local preferences (keep out of this file)
 - Personal instructions go in `CLAUDE.local.md` (gitignored) or your user-level `~/.claude/CLAUDE.md`.
-- Personal Claude settings go in `.claude/settings.local.json` (gitignored). `.claude/launch.json` is shared (dev server config).
+- The whole `.claude/` folder is gitignored (settings, dev-server launch config). Do not commit it.
 - Environment values go in `.env.local` (gitignored). Only `.env.example` is committed.
 - Editor settings stay out of the repo (`.vscode/*` is ignored except `extensions.json`).
 
