@@ -36,15 +36,37 @@ This file is the shared team reference. It is checked in. Personal preferences d
   - State lives in one `useReducer` (`wizardState.js`), so data survives Back.
   - Steps are in `steps/`.
   - Tests are in `__tests__/`.
+- `src/pages/warehouse/`: keyboard-first inspection.
+  - `ScanBox` takes focus on load and after each finished return.
+  - `InspectionForm` moves focus to the first grade button after a scan, then reads keys for the focused item row: `1/2/3` grade, `a/p/r` decision, `Ctrl+Enter` submit.
+  - It sends the return's `version`. `STALE_VERSION` and `ILLEGAL_TRANSITION` show a "Reload return" button.
+  - `ItemInspection` is one row. `PhotoLightbox` is shared with finance.
+- `src/pages/finance/`: `ApprovalsPage` (filter, sort by age or amount), `QueueTable`, `FinanceDrawer`.
+  - The drawer has a confirm step showing the amount, a required note for Reject, and an Idempotency-Key per confirmed attempt.
+  - It handles `SEPARATION_OF_DUTIES` (403), stale versions, and `REFUND_FAILED` with a retry button.
+- `src/api/staff.js`: the warehouse and finance hooks and types.
+- `src/lib/refund.js`: refund preview maths (A and B 100%, C 50%, reject 0, integer paise, round half up). It must match the backend.
+- `src/components/ui/Modal.jsx` (native `<dialog>`, `center` or `drawer`), `Segmented.jsx` (large radio buttons), `Kbd.jsx`.
+- `src/pages/customer/ReturnDetailPage.jsx` + `return-detail/`: status page.
+  - Polls `useReturn` every 15 s until a final status. TanStack pauses it while the tab is hidden and refetches on focus.
+  - The timeline reloads when the status changes (its query key includes the status).
+  - `LabelCard` prints only the label through the `.print-label` rules in `index.css`.
+  - `ItemsTable` shows status, grade and refund, with the Grade C 50% note.
+- `src/components/StatusTimeline.jsx`: vertical on mobile, horizontal from `md`. It draws the steps from `domain/timelineModel.js` (`buildTimeline`, pure and tested).
 - `src/domain/`:
   - `returnStatus.js`: the state machine.
   - `returns.js`: reasons, refund methods, ineligibility badges and microcopy, photo limits.
 - `src/lib/format.js`: `formatINR(paise)`, date formatters, `cx()`.
 - `src/styles/index.css`: Tailwind `@theme` tokens. This is the only place colour values are defined.
 
+## Motion
+- Entrances are one-shot and short (`animate-fade-up`, `animate-pop-in`, `animate-grow-x/y`, `animate-pulse-ring` for the current step), all defined in the `@theme` block of `index.css`.
+- `prefers-reduced-motion` switches them off globally. New animations must go through those tokens, never custom per-component keyframes.
+
 ## Conventions
 - Money is integer paise everywhere. Display it only through `formatINR`.
 - JS + JSDoc, no TypeScript. Keep the JSDoc typedefs in `src/api/hooks.js` in sync with `docs/api-contract.md` and the mocks.
+- Staff writes send the `version` the user saw. Never retry a write that got a 409 without reloading first.
 - Every submit button uses `loading`/`disabled` plus a ref guard against double submits. Create-type POSTs send an `Idempotency-Key`.
 - Form errors go through `Field`, so they are tied to inputs with `aria-describedby`/`aria-invalid`.
 - The order lookup shows one generic failure message, never a hint about which field is wrong. A 429 has its own message.
@@ -55,8 +77,12 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - APPROVED → IN_TRANSIT
 - IN_TRANSIT → RECEIVED
 - RECEIVED → INSPECTED
-- INSPECTED → REFUNDED | REJECTED
+- INSPECTED → PENDING_FINANCE | REFUND_PROCESSING | REJECTED
+- PENDING_FINANCE → REFUND_PROCESSING | REJECTED
+- REFUND_PROCESSING → REFUNDED | REFUND_FAILED
+- REFUND_FAILED → REFUND_PROCESSING (retry)
 - REFUNDED and REJECTED are final.
+- Customers see PENDING_FINANCE and REFUND_PROCESSING as "Inspected", and REFUND_FAILED as "Refund retrying" (`toCustomerStep`, `StatusBadge`, `buildTimeline`). The customer API never exposes the flagged state.
 - Every state change is written to the audit log by the backend.
 - Never offer a transition in the UI that is not in `TRANSITIONS`.
 

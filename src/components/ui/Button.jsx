@@ -28,7 +28,7 @@ export default function Button({
   ...rest
 }) {
   const cls = cx(
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border font-semibold transition-colors',
+    'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border font-semibold transition-[background-color,transform] enabled:active:scale-[0.98]',
     'disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60',
     size === 'lg' ? 'px-6 text-base' : 'px-4 text-sm',
     block && 'w-full',

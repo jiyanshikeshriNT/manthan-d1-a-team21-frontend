@@ -1,6 +1,5 @@
-// Return state machine — single source of truth for the frontend.
-// The backend enforces the same rules; the UI uses this only to decide
-// what to show and which actions to offer.
+// Return state machine: single source of truth for the frontend.
+// The backend enforces the same rules; the UI uses this to decide what to show.
 
 export const STATUS = Object.freeze({
   REQUESTED: 'REQUESTED',
@@ -8,6 +7,9 @@ export const STATUS = Object.freeze({
   IN_TRANSIT: 'IN_TRANSIT',
   RECEIVED: 'RECEIVED',
   INSPECTED: 'INSPECTED',
+  PENDING_FINANCE: 'PENDING_FINANCE',
+  REFUND_PROCESSING: 'REFUND_PROCESSING',
+  REFUND_FAILED: 'REFUND_FAILED',
   REFUNDED: 'REFUNDED',
   REJECTED: 'REJECTED',
 })
@@ -18,11 +20,14 @@ export const STATUS_LABEL = {
   IN_TRANSIT: 'In transit',
   RECEIVED: 'Received',
   INSPECTED: 'Inspected',
+  PENDING_FINANCE: 'Awaiting finance review',
+  REFUND_PROCESSING: 'Refund processing',
+  REFUND_FAILED: 'Refund retrying',
   REFUNDED: 'Refunded',
   REJECTED: 'Rejected',
 }
 
-// Happy-path order, used by the customer status timeline.
+// The six steps a customer sees on the happy path. Rejected replaces the final steps.
 export const TIMELINE = [
   STATUS.REQUESTED,
   STATUS.APPROVED,
@@ -38,18 +43,25 @@ export const TRANSITIONS = {
   APPROVED: [STATUS.IN_TRANSIT],
   IN_TRANSIT: [STATUS.RECEIVED],
   RECEIVED: [STATUS.INSPECTED],
-  INSPECTED: [STATUS.REFUNDED, STATUS.REJECTED],
+  INSPECTED: [STATUS.PENDING_FINANCE, STATUS.REFUND_PROCESSING, STATUS.REJECTED],
+  PENDING_FINANCE: [STATUS.REFUND_PROCESSING, STATUS.REJECTED],
+  REFUND_PROCESSING: [STATUS.REFUNDED, STATUS.REFUND_FAILED],
+  REFUND_FAILED: [STATUS.REFUND_PROCESSING],
   REFUNDED: [],
   REJECTED: [],
 }
 
-export function canTransition(from, to) {
-  return TRANSITIONS[from]?.includes(to) ?? false
+export const canTransition = (from, to) => TRANSITIONS[from]?.includes(to) ?? false
+export const isFinal = (status) => TRANSITIONS[status]?.length === 0
+
+/**
+ * Customer view of a backend status. Finance and refund-processing states are internal,
+ * so customers see them as "Inspected". REFUND_FAILED is handled by the caller (retrying state).
+ */
+export function toCustomerStep(status) {
+  return status === STATUS.PENDING_FINANCE || status === STATUS.REFUND_PROCESSING ? STATUS.INSPECTED : status
 }
 
-export function isFinal(status) {
-  return TRANSITIONS[status]?.length === 0
-}
-
-// Business constants shared with the UI copy.
 export const FINANCE_APPROVAL_THRESHOLD_INR = 10000
+// Refunds strictly above this need finance approval (₹10,000 in paise).
+export const FINANCE_APPROVAL_THRESHOLD_PAISE = FINANCE_APPROVAL_THRESHOLD_INR * 100
