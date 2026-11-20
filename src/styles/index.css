@@ -1,0 +1,127 @@
+/* Design tokens — match docs/returnright-wireframes.html */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --ink: #1e2633;
+  --ink-2: #556173;
+  --line: #c5cdd8;
+  --fill: #e3e8ef;
+  --accent: #2f5fd0;
+  --accent-soft: #dce5fa;
+  --ok: #1f7a4d;
+  --ok-soft: #ddf1e6;
+  --bad: #b3261e;
+  --bad-soft: #f9dedc;
+  --warn: #8a5a00;
+  --warn-soft: #fbebc8;
+  --radius: 8px;
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c;
+    --surface: #1b2029;
+    --ink: #e4e9f1;
+    --ink-2: #9aa6b8;
+    --line: #343c49;
+    --fill: #262d38;
+    --accent: #7fa2f0;
+    --accent-soft: #22325a;
+    --ok: #6fcf9b;
+    --ok-soft: #173a2a;
+    --bad: #f2a19b;
+    --bad-soft: #4a1f1c;
+    --warn: #f0c46a;
+    --warn-soft: #45350f;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+h1 { font-size: 26px; margin: 0; }
+h2 { font-size: 18px; margin: 0; }
+a { color: var(--accent); }
+.muted { color: var(--ink-2); }
+.stack { display: grid; gap: 16px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.logo { font-weight: 700; color: var(--ink); text-decoration: none; }
+.logo em { font-style: normal; color: var(--accent); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.placeholder ul { margin: 8px 0 0; padding-left: 20px; color: var(--ink-2); }
+
+.btn {
+  font: inherit;
+  font-weight: 600;
+  display: inline-block;
+  padding: 9px 16px;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Customer: phone-first, centred column */
+.customer-main { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+
+.role-grid { display: grid; gap: 12px; }
+.role-card { display: grid; gap: 4px; text-decoration: none; color: inherit; }
+.role-card:hover { border-color: var(--accent); }
+.role-card p { margin: 0; }
+
+.stepper { display: grid; gap: 6px; }
+.stepper-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+.stepper-bar { display: flex; gap: 4px; }
+.stepper-bar i { flex: 1; height: 5px; border-radius: 3px; background: var(--fill); }
+.stepper-bar i.on { background: var(--accent); }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.timeline-step { display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
+.timeline-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); }
+.timeline-step.done { color: var(--ink); }
+.timeline-step.done .timeline-dot { background: var(--ok); border-color: var(--ok); }
+.timeline-step.now { color: var(--ink); font-weight: 600; }
+.timeline-step.now .timeline-dot { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.timeline-step.rejected { color: var(--bad); font-weight: 600; }
+.timeline-step.rejected .timeline-dot { background: var(--bad); border-color: var(--bad); }
+
+/* Staff: sidebar + content */
+.staff-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: calc(100vh - 50px); }
+.sidenav { display: grid; align-content: start; gap: 4px; padding: 16px; border-right: 1px solid var(--line); background: var(--surface); }
+.sidenav a { padding: 8px 12px; border-radius: 6px; color: var(--ink-2); text-decoration: none; font-weight: 500; }
+.sidenav a.active { background: var(--accent-soft); color: var(--accent); }
+.staff-main { padding: 24px; min-width: 0; }
+
+@media (max-width: 720px) {
+  .staff-body { grid-template-columns: minmax(0, 1fr); }
+  .sidenav { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); }
+}

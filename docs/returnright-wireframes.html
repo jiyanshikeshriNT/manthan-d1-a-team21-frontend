@@ -1,0 +1,522 @@
+<title>ReturnRight Wireframes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Kalam:wght@400;700&display=swap">
+<style>
+/* Layout: blueprint-paper wireframe sheet; tabs per persona; each screen in a device frame with sticky-note annotations beside it */
+:root{
+  --paper:#EEF1F5; --sheet:#FFFFFF; --ink:#1E2633; --ink-2:#556173; --line:#C5CDD8; --fill:#E3E8EF;
+  --accent:#2F5FD0; --accent-soft:#DCE5FA; --note:#FFF1A8; --note-ink:#4A3F00;
+  --ok:#1F7A4D; --ok-soft:#DDF1E6; --bad:#B3261E; --bad-soft:#F9DEDC; --warn:#8A5A00; --warn-soft:#FBEBC8;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  --f-hand:"Kalam","Segoe Print","Comic Sans MS",cursive;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#12161C; --sheet:#1B2029; --ink:#E4E9F1; --ink-2:#9AA6B8; --line:#343C49; --fill:#262D38;
+  --accent:#7FA2F0; --accent-soft:#22325A; --note:#4A4320; --note-ink:#F7EBB0;
+  --ok:#6FCF9B; --ok-soft:#173A2A; --bad:#F2A19B; --bad-soft:#4A1F1C; --warn:#F0C46A; --warn-soft:#45350F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#12161C; --sheet:#1B2029; --ink:#E4E9F1; --ink-2:#9AA6B8; --line:#343C49; --fill:#262D38;
+  --accent:#7FA2F0; --accent-soft:#22325A; --note:#4A4320; --note-ink:#F7EBB0;
+  --ok:#6FCF9B; --ok-soft:#173A2A; --bad:#F2A19B; --bad-soft:#4A1F1C; --warn:#F0C46A; --warn-soft:#45350F; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:32px 32px;background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;background:var(--paper);opacity:.82;z-index:-1}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-size:28px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 small{display:block;font-size:12px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.lede{color:var(--ink-2);max-width:62ch;margin:6px 0 0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
+nav.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 20px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;padding:8px 0;background:var(--paper)}
+nav.tabs button{font:inherit;font-weight:500;border:1.5px solid var(--line);background:var(--sheet);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+nav.tabs button:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs .who{font-size:11px;opacity:.7;margin-left:6px;font-weight:400}
+section.view{display:grid;gap:20px}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:24px;align-items:start}
+@media (max-width:880px){.stage{grid-template-columns:minmax(0,1fr)}}
+.notes{display:grid;gap:14px}
+.note{background:var(--note);color:var(--note-ink);font-family:var(--f-hand);font-size:16px;line-height:1.35;padding:12px 14px;border-radius:2px;box-shadow:0 2px 0 rgba(0,0,0,.08);transform:rotate(-.6deg)}
+.note:nth-child(even){transform:rotate(.7deg)}
+.note b{font-weight:700}
+.title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px}
+.title-row h2{font-size:20px;margin:0}
+.title-row p{margin:0;color:var(--ink-2)}
+
+/* generic wireframe atoms */
+.frame{background:var(--sheet);border:2px solid var(--ink);border-radius:10px;overflow:hidden;min-width:0}
+.browser-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:2px solid var(--ink);background:var(--fill)}
+.dots{display:flex;gap:5px}.dots i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ink-2)}
+.url{flex:1;min-width:0;font-family:var(--f-mono);font-size:12px;color:var(--ink-2);background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:3px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:1.5px dashed var(--line)}
+.logo{font-weight:700;letter-spacing:-.01em}.logo em{font-style:normal;color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--ink-2);white-space:nowrap}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.field{display:grid;gap:4px}
+.input{border:1.5px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--sheet);color:var(--ink);font:inherit;width:100%}
+.input.ph{color:var(--ink-2)}
+.btn{font:inherit;font-weight:600;border:2px solid var(--ink);background:var(--sheet);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;text-align:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--sheet)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.img-ph{background:var(--fill);border:1.5px solid var(--line);border-radius:6px;position:relative;overflow:hidden;aspect-ratio:1;max-width:100%}
+.img-ph::before,.img-ph::after{content:"";position:absolute;inset:0;background:linear-gradient(to top right,transparent calc(50% - 1px),var(--line) 50%,transparent calc(50% + 1px))}
+.img-ph::after{background:linear-gradient(to top left,transparent calc(50% - 1px),var(--line) 50%,transparent calc(50% + 1px))}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.info{background:var(--accent-soft);color:var(--accent)}
+.muted{color:var(--ink-2)}
+.why{font-size:12.5px;border-left:3px solid currentColor;padding:4px 8px;margin-top:6px;border-radius:0 4px 4px 0}
+.why.bad{color:var(--bad);background:var(--bad-soft)}.why.ok{color:var(--ok);background:var(--ok-soft)}
+.why span{color:var(--ink)}
+
+/* phone */
+.phone-area{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
+.phone{width:350px;max-width:100%;border:2px solid var(--ink);border-radius:34px;background:var(--sheet);padding:12px 10px 16px;box-shadow:0 10px 0 -4px var(--line)}
+.notch{width:110px;height:18px;border-radius:0 0 12px 12px;background:var(--ink);margin:-12px auto 8px}
+.screen{min-height:560px;display:flex;flex-direction:column;gap:12px;padding:4px 8px}
+.stepper{display:flex;gap:4px}
+.stepper i{flex:1;height:5px;border-radius:3px;background:var(--fill)}
+.stepper i.on{background:var(--accent)}
+.stephead{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2)}
+.screen h3{margin:0;font-size:19px;line-height:1.25}
+.item{display:grid;grid-template-columns:22px 48px minmax(0,1fr);gap:8px;align-items:start;border:1.5px solid var(--line);border-radius:8px;padding:8px}
+.item.no{background:var(--fill)}
+.item .img-ph{width:48px}
+.box{width:18px;height:18px;border:2px solid var(--ink);border-radius:4px;margin-top:2px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.box.on{background:var(--accent);border-color:var(--accent);color:var(--sheet)}
+.box.off{border-color:var(--line)}
+.radio{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;border:1.5px solid var(--line);border-radius:8px;padding:10px}
+.radio.on{border-color:var(--accent);background:var(--accent-soft)}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink);margin-top:2px;display:grid;place-items:center}
+.radio.on .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.upload{border:2px dashed var(--line);border-radius:8px;padding:16px;text-align:center;color:var(--ink-2);font-size:13px}
+.spacer{flex:1}
+.phone-ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.phone-ctrl .btn{padding:7px 12px}
+.jump{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.jump button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:6px;padding:3px 8px;cursor:pointer}
+.jump button.cur{background:var(--ink);color:var(--sheet);border-color:var(--ink)}
+.qr{display:grid;grid-template-columns:repeat(21,1fr);width:150px;aspect-ratio:1;border:6px solid var(--sheet);outline:1.5px solid var(--line);margin:0 auto;background:var(--sheet)}
+.qr i{background:var(--sheet)}.qr i.k{background:var(--ink)}
+.label-card{border:2px dashed var(--ink);border-radius:8px;padding:12px;display:grid;gap:8px}
+.tl{display:grid;gap:0}
+.tl-row{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;min-height:46px}
+.tl-rail{display:flex;flex-direction:column;align-items:center}
+.tl-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--sheet);flex:none;display:grid;place-items:center;font-size:11px;font-weight:700}
+.tl-line{flex:1;width:2px;background:var(--line)}
+.tl-row.done .tl-dot{background:var(--ok);border-color:var(--ok);color:var(--sheet)}
+.tl-row.done .tl-line{background:var(--ok)}
+.tl-row.now .tl-dot{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.tl-row.now .tl-dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.tl-row b{display:block}.tl-row small{color:var(--ink-2)}
+
+/* desktop screens */
+.desk{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:520px}
+.side{border-right:1.5px dashed var(--line);padding:14px;display:grid;align-content:start;gap:6px}
+.side a{display:block;padding:7px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-weight:500}
+.side a.on{background:var(--accent-soft);color:var(--accent)}
+.main{padding:18px;display:grid;gap:16px;align-content:start;min-width:0}
+@media (max-width:720px){.desk{grid-template-columns:minmax(0,1fr)}.side{display:flex;flex-wrap:wrap;border-right:0;border-bottom:1.5px dashed var(--line)}}
+.scan{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.scan .input{font-family:var(--f-mono);font-size:16px;padding:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.panel{border:1.5px solid var(--line);border-radius:8px;padding:14px;display:grid;gap:10px;align-content:start;min-width:0}
+.panel h4{margin:0;font-size:14px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:13px}
+.kv dt{color:var(--ink-2)}.kv dd{margin:0}
+.wh-item{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;border:1.5px solid var(--line);border-radius:8px;padding:10px}
+.wh-item .img-ph{width:64px}
+.grades{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.grade{font:inherit;font-weight:700;min-width:52px;padding:8px 10px;border:2px solid var(--line);border-radius:8px;background:var(--sheet);color:var(--ink);cursor:pointer;display:grid;line-height:1.1;text-align:center}
+.grade small{font-weight:400;font-size:10.5px;color:var(--ink-2)}
+.grade[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--ink-2)}
+.tbl-wrap{overflow-x:auto;border:1.5px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600;background:var(--fill)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+tr.sel td{background:var(--accent-soft)}
+.toast{font-size:13px;padding:8px 12px;border-radius:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{border:1.5px solid var(--line);border-radius:8px;padding:12px}
+.kpi .v{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi .d{font-size:12px;color:var(--ink-2)}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:120px minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:13px}
+.bar .track{height:18px;background:var(--fill);border-radius:3px;overflow:hidden}
+.bar .fillb{height:100%;background:var(--accent);border-radius:3px}
+.bar .val{text-align:right;font-family:var(--f-mono)}
+.bar.na .val{color:var(--ink-2)}
+.reasons .fillb{background:var(--ink-2)}
+.stages{display:flex;height:22px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.stages div{display:grid;place-items:center;font-size:11px;font-family:var(--f-mono);color:var(--sheet)}
+.stages .s1{background:var(--accent)}.stages .s2{background:var(--ink-2)}.stages .s3{background:var(--ink)}
+.stage-key{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--ink-2)}
+
+/* overview */
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.st{flex:1 1 140px;border:2px solid var(--ink);border-radius:8px;background:var(--sheet);padding:10px;display:grid;gap:4px;align-content:start}
+.st b{font-size:15px}.st small{color:var(--ink-2);font-size:12px}
+.st.end{border-style:dashed}
+.arrow{align-self:center;color:var(--ink-2);font-size:18px}
+@media (max-width:640px){.arrow{display:none}}
+.screens-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.map-card{background:var(--sheet);border:2px solid var(--ink);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start}
+.map-card h3{margin:0;font-size:16px}
+.map-card ol{margin:0;padding-left:20px;color:var(--ink-2)}
+.map-card button{justify-self:start}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><small>Track A · Wireframes</small>ReturnRight returns portal</h1>
+      <p class="lede">Low-fidelity screens for the four personas. Click the tabs, step through the customer wizard, and try the buttons. Yellow notes explain the thinking behind each screen.</p>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--ok-soft)"></i>Allowed</span>
+      <span><i class="sw" style="background:var(--bad-soft)"></i>Refused / rejected</span>
+      <span><i class="sw" style="background:var(--warn-soft)"></i>Needs attention</span>
+      <span><i class="sw" style="background:var(--note)"></i>Design note</span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-view="overview">Overview</button>
+    <button role="tab" data-view="customer">Customer<span class="who">phone</span></button>
+    <button role="tab" data-view="warehouse">Warehouse agent</button>
+    <button role="tab" data-view="finance">Finance reviewer</button>
+    <button role="tab" data-view="manager">Ops manager</button>
+  </nav>
+
+  <!-- OVERVIEW -->
+  <section class="view" id="v-overview">
+    <div class="title-row"><h2>How a return moves through the system</h2><p>Each box is a status. Below each status is who moves it there.</p></div>
+    <div class="flow">
+      <div class="st"><b>Requested</b><small>Customer submits the wizard</small></div><span class="arrow">→</span>
+      <div class="st"><b>Approved</b><small>Eligibility engine, automatic</small></div><span class="arrow">→</span>
+      <div class="st"><b>In transit</b><small>Customer ships with QR label</small></div><span class="arrow">→</span>
+      <div class="st"><b>Received</b><small>Warehouse scans QR</small></div><span class="arrow">→</span>
+      <div class="st"><b>Inspected</b><small>Warehouse grades A / B / C</small></div><span class="arrow">→</span>
+      <div class="st end"><b>Refunded</b><small>Auto if ≤ ₹10,000, else Finance approves</small></div>
+      <div class="st end" style="border-color:var(--bad)"><b style="color:var(--bad)">Rejected</b><small>From Requested (rules) or Inspected (agent)</small></div>
+    </div>
+    <div class="note" style="max-width:640px">Every arrow writes one row to the <b>audit log</b>: who, when, old status, new status. Any move that is not in this diagram gets blocked by the backend.</div>
+
+    <div class="title-row" style="margin-top:10px"><h2>Screens per persona</h2></div>
+    <div class="screens-map">
+      <div class="map-card"><h3>Customer</h3><span class="chip">Phone first · no login</span>
+        <ol><li>Find order</li><li>Pick items (eligibility shown)</li><li>Reason + photo</li><li>Refund method</li><li>Return label with QR</li><li>Status timeline</li></ol>
+        <button class="btn" data-go="customer">Open wireframe</button></div>
+      <div class="map-card"><h3>Warehouse agent</h3><span class="chip">Desktop · keyboard + scanner</span>
+        <ol><li>Scan / type QR</li><li>Grade each item A / B / C</li><li>Accept, partially accept or reject</li></ol>
+        <button class="btn" data-go="warehouse">Open wireframe</button></div>
+      <div class="map-card"><h3>Finance reviewer</h3><span class="chip">Desktop</span>
+        <ol><li>Queue of refunds above ₹10,000</li><li>Review and approve or reject</li><li>Mock gateway pays, ledger row written</li></ol>
+        <button class="btn" data-go="finance">Open wireframe</button></div>
+      <div class="map-card"><h3>Operations manager</h3><span class="chip">Desktop · read only</span>
+        <ol><li>Return rate by category</li><li>Top reasons</li><li>Average cycle time</li><li>Flagged customers</li></ol>
+        <button class="btn" data-go="manager">Open wireframe</button></div>
+    </div>
+  </section>
+
+  <!-- CUSTOMER -->
+  <section class="view" id="v-customer" hidden>
+    <div class="title-row"><h2>Customer return wizard</h2><p>Designed for phone width. Use Next / Back or jump to a step.</p></div>
+    <div class="stage">
+      <div class="phone-area">
+        <div class="phone"><div class="notch"></div><div class="screen" id="phoneScreen"></div></div>
+        <div class="phone-ctrl">
+          <button class="btn" id="prevStep">← Back</button>
+          <span class="mono muted" id="stepCount">1 / 6</span>
+          <button class="btn primary" id="nextStep">Next →</button>
+        </div>
+        <div class="jump" id="jump"></div>
+      </div>
+      <div class="notes" id="custNotes"></div>
+    </div>
+  </section>
+
+  <!-- WAREHOUSE -->
+  <section class="view" id="v-warehouse" hidden>
+    <div class="title-row"><h2>Warehouse inspection</h2><p>One screen. The agent scans, grades, and decides without using a mouse.</p></div>
+    <div class="stage">
+      <div class="frame">
+        <div class="browser-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">returnright.local/warehouse/inspect</div></div>
+        <div class="appbar"><span class="logo">Return<em>Right</em> · Warehouse</span><span class="chip">Priya S. · Bay 3</span></div>
+        <div class="desk">
+          <div class="side"><a class="on">Inspect</a><a>Received today <span class="mono">(38)</span></a><a>My history</a></div>
+          <div class="main">
+            <div class="field"><span class="lbl">Scan QR or type return ID</span>
+              <div class="scan"><div class="input mono">RET-2026-04817</div><button class="btn primary">Load <span class="kbd">Enter</span></button></div></div>
+            <div class="grid2">
+              <div class="panel"><h4>Return details</h4>
+                <dl class="kv"><dt>Order</dt><dd class="mono">ORD-118204</dd><dt>Customer</dt><dd>Rahul M.</dd><dt>Requested</dt><dd>18 Nov 2026</dd><dt>Refund to</dt><dd>Original payment (UPI)</dd><dt>Status</dt><dd><span class="pill info">Received</span></dd></dl>
+              </div>
+              <div class="panel"><h4>Customer's photo</h4><div class="img-ph" style="max-width:140px"></div><span class="muted" style="font-size:12px">Reason given: "Stitching came apart"</span></div>
+            </div>
+            <div class="panel"><h4>Grade each item</h4>
+              <div class="wh-item"><div class="img-ph"></div><div><b>Cotton kurta, size M</b> <span class="muted mono">₹1,299</span>
+                <div class="grades" data-item="a" data-price="1299">
+                  <button class="grade" aria-pressed="true" data-g="A">A<small>Like new</small></button>
+                  <button class="grade" aria-pressed="false" data-g="B">B<small>Minor wear</small></button>
+                  <button class="grade" aria-pressed="false" data-g="C">C<small>Damaged · 50%</small></button>
+                </div></div></div>
+              <div class="wh-item"><div class="img-ph"></div><div><b>Steel water bottle, 1L</b> <span class="muted mono">₹649</span>
+                <div class="grades" data-item="b" data-price="649">
+                  <button class="grade" aria-pressed="false" data-g="A">A<small>Like new</small></button>
+                  <button class="grade" aria-pressed="false" data-g="B">B<small>Minor wear</small></button>
+                  <button class="grade" aria-pressed="true" data-g="C">C<small>Damaged · 50%</small></button>
+                </div></div></div>
+              <div class="toast" style="background:var(--accent-soft)">Refund preview: <b class="mono" id="whTotal"></b> <span class="muted" id="whBreak"></span></div>
+            </div>
+            <div class="actions">
+              <button class="btn primary">Accept all <span class="kbd">A</span></button>
+              <button class="btn">Partially accept <span class="kbd">P</span></button>
+              <button class="btn danger">Reject <span class="kbd">R</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><b>Fast entry:</b> the cursor sits in the scan box. A USB scanner types the ID and presses Enter.</div>
+        <div class="note">Grade buttons are big targets with keyboard shortcuts. <b>Click a grade</b> and watch the refund preview change.</div>
+        <div class="note"><b>Grade C = 50% refund.</b> The rule is applied by the backend, and the agent only sees the result.</div>
+        <div class="note"><b>Mixed basket:</b> grade items separately. "Partially accept" lets the agent reject one item and accept the rest.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINANCE -->
+  <section class="view" id="v-finance" hidden>
+    <div class="title-row"><h2>Finance approval</h2><p>Only refunds above ₹10,000 come here. Smaller ones are paid automatically.</p></div>
+    <div class="stage">
+      <div class="frame">
+        <div class="browser-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">returnright.local/finance/approvals</div></div>
+        <div class="appbar"><span class="logo">Return<em>Right</em> · Finance</span><span class="chip">Anita K. · Reviewer</span></div>
+        <div class="desk">
+          <div class="side"><a class="on">Approvals <span class="mono">(3)</span></a><a>Ledger</a><a>Failed payments</a></div>
+          <div class="main">
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>Return</th><th>Customer</th><th>Item</th><th>Grade</th><th class="num">Refund</th><th>Flags</th></tr></thead>
+              <tbody>
+                <tr class="sel"><td class="mono">RET-04790</td><td>Vikram P.</td><td>Laptop 14"</td><td>A</td><td class="num">₹54,990</td><td><span class="pill warn">4 returns / 30d</span></td></tr>
+                <tr><td class="mono">RET-04802</td><td>Sneha R.</td><td>Smart TV 43"</td><td>C</td><td class="num">₹14,500</td><td>—</td></tr>
+                <tr><td class="mono">RET-04811</td><td>Arjun T.</td><td>Air fryer + mixer</td><td>A, B</td><td class="num">₹11,240</td><td>—</td></tr>
+              </tbody></table></div>
+            <div class="grid2">
+              <div class="panel"><h4>RET-04790 · Laptop 14"</h4>
+                <dl class="kv"><dt>Delivered</dt><dd>12 Nov (8 days ago, electronics window 10 days)</dd><dt>Inspection</dt><dd>Grade A by Priya S.</dd><dt>Refund to</dt><dd>Original card ••4411</dd><dt>Amount</dt><dd class="mono"><b>₹54,990</b></dd></dl>
+                <div class="why bad" style="color:var(--warn);background:var(--warn-soft)">Flagged: <span>4 returns in the last 30 days (limit is 3). Check before paying.</span></div>
+                <div class="actions">
+                  <button class="btn primary" id="payBtn">Approve &amp; pay ₹54,990</button>
+                  <button class="btn danger">Reject</button>
+                </div>
+                <div class="toast" id="payMsg" hidden></div>
+              </div>
+              <div class="panel"><h4>Ledger for this return</h4>
+                <div class="tbl-wrap"><table style="min-width:380px"><thead><tr><th>Time</th><th>Entry</th><th class="num">Amount</th></tr></thead>
+                  <tbody id="ledgerRows"><tr><td class="mono">—</td><td class="muted">No payments yet</td><td class="num">—</td></tr></tbody></table></div>
+                <span class="muted mono" style="font-size:12px">Idempotency key: refund:RET-04790:item-1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><b>Try it:</b> click "Approve &amp; pay" twice. The second click pays nothing because the same idempotency key is sent.</div>
+        <div class="note">The button disables while paying, but <b>the real protection is in the backend</b>: one refund per return item, enforced by a unique key.</div>
+        <div class="note">The ledger is <b>append-only</b>. Rows are never edited. A reversal would be a new row.</div>
+        <div class="note">The flag comes from the <b>more than 3 returns in 30 days</b> rule.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MANAGER -->
+  <section class="view" id="v-manager" hidden>
+    <div class="title-row"><h2>Manager dashboard</h2><p>Last 30 days. Sample figures from seed data.</p></div>
+    <div class="stage">
+      <div class="frame">
+        <div class="browser-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">returnright.local/manager/dashboard</div></div>
+        <div class="appbar"><span class="logo">Return<em>Right</em> · Operations</span><span class="chip">Last 30 days ▾</span></div>
+        <div class="main">
+          <div class="kpis">
+            <div class="kpi"><div class="lbl">Return rate</div><div class="v">9.8%</div><div class="d">196 of 2,000 orders</div></div>
+            <div class="kpi"><div class="lbl">Avg cycle time</div><div class="v">4.6 days</div><div class="d">Request → refund</div></div>
+            <div class="kpi"><div class="lbl">Refunded</div><div class="v">₹6.42 L</div><div class="d">171 refunds, 0 duplicates</div></div>
+            <div class="kpi"><div class="lbl">Flagged customers</div><div class="v" style="color:var(--warn)">7</div><div class="d">More than 3 returns / 30 days</div></div>
+          </div>
+          <div class="grid2">
+            <div class="panel"><h4>Return rate by category</h4><div class="bars" id="catBars"></div></div>
+            <div class="panel"><h4>Top return reasons</h4><div class="bars reasons" id="reasonBars"></div></div>
+          </div>
+          <div class="grid2">
+            <div class="panel"><h4>Where the 4.6 days go</h4>
+              <div class="stages"><div class="s1" style="width:30%">1.4d</div><div class="s2" style="width:46%">2.1d</div><div class="s3" style="width:24%">1.1d</div></div>
+              <div class="stage-key"><span><i class="sw" style="background:var(--accent)"></i>Request → shipped</span><span><i class="sw" style="background:var(--ink-2)"></i>In transit</span><span><i class="sw" style="background:var(--ink)"></i>Inspection → refund</span></div>
+            </div>
+            <div class="panel"><h4>Flagged customers</h4>
+              <div class="tbl-wrap"><table style="min-width:360px"><thead><tr><th>Customer</th><th class="num">Returns</th><th class="num">Refunded</th></tr></thead><tbody>
+                <tr><td>Vikram P.</td><td class="num">4</td><td class="num">₹61,200</td></tr>
+                <tr><td>Meera J.</td><td class="num">5</td><td class="num">₹8,930</td></tr>
+                <tr><td>Karan D.</td><td class="num">4</td><td class="num">₹3,410</td></tr>
+              </tbody></table></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><b>Summary first:</b> four headline numbers on top, detail below.</div>
+        <div class="note"><b>Accessible colours:</b> bars use one blue with a value printed on each, so meaning never depends on colour alone.</div>
+        <div class="note">Innerwear and perishables show <b>"not returnable"</b> instead of 0%.</div>
+        <div class="note">Click a flagged customer to open their return history (next iteration).</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const views=["overview","customer","warehouse","finance","manager"];
+  const tabs=[...document.querySelectorAll("nav.tabs button")];
+  function show(v){
+    if(!views.includes(v)) v="overview";
+    views.forEach(n=>document.getElementById("v-"+n).hidden=(n!==v));
+    tabs.forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v?"true":"false"));
+  }
+  tabs.forEach(t=>t.addEventListener("click",()=>{location.hash=t.dataset.view;}));
+  document.querySelectorAll("[data-go]").forEach(b=>b.addEventListener("click",()=>{location.hash=b.dataset.go;window.scrollTo(0,0);}));
+  window.addEventListener("hashchange",()=>show(location.hash.slice(1)));
+  show(location.hash.slice(1));
+
+  /* fake QR */
+  function qr(){
+    const n=21,cells=[];let s=4817;
+    const rnd=()=>{s=(s*9301+49297)%233280;return s/233280;};
+    const finder=(r,c)=>{for(const [fr,fc] of [[0,0],[0,14],[14,0]]){const y=r-fr,x=c-fc;if(y>=0&&y<7&&x>=0&&x<7){return (y===0||y===6||x===0||x===6||(y>=2&&y<=4&&x>=2&&x<=4));}if(y>=-1&&y<=7&&x>=-1&&x<=7)return false;}return null;};
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++){const f=finder(r,c);cells.push('<i class="'+((f===null?rnd()>.52:f)?'k':'')+'"></i>');}
+    return '<div class="qr" aria-label="QR code placeholder">'+cells.join("")+'</div>';
+  }
+
+  const steps=[
+    {name:"Find order",html:`
+      <h3>Start a return</h3><p class="muted" style="margin:0">Enter the details from your order confirmation email.</p>
+      <div class="field"><span class="lbl">Order number</span><div class="input mono">ORD-118204</div></div>
+      <div class="field"><span class="lbl">Email used for the order</span><div class="input">rahul.m@example.com</div></div>
+      <div class="spacer"></div><button class="btn primary">Find my order</button>
+      <p class="muted" style="font-size:12px;margin:0;text-align:center">No account needed.</p>`,
+     notes:["<b>Two fields only.</b> Order number + email is the security check, so no login is needed.","If they don't match: <b>\"We couldn't find an order with that number and email. Check both and try again.\"</b> The message does not say which field is wrong."]},
+    {name:"Pick items",html:`
+      <h3>Which items are you returning?</h3><p class="muted" style="margin:0;font-size:12.5px">Order ORD-118204 · delivered 6 Nov 2026</p>
+      <div class="item"><span class="box on">✓</span><div class="img-ph"></div><div><b>Cotton kurta, M</b><br><span class="mono muted">₹1,299</span> <span class="pill ok">Returnable</span><div class="why ok">Return by <span>6 Dec</span> (30-day window)</div></div></div>
+      <div class="item"><span class="box on">✓</span><div class="img-ph"></div><div><b>Steel water bottle</b><br><span class="mono muted">₹649</span> <span class="pill ok">Returnable</span></div></div>
+      <div class="item no"><span class="box off"></span><div class="img-ph"></div><div><b>Wireless earbuds</b><br><span class="mono muted">₹1,799</span> <span class="pill bad">Not returnable</span><div class="why bad">Electronics can be returned within 10 days. <span>This was delivered 14 days ago.</span></div></div></div>
+      <div class="item no"><span class="box off"></span><div class="img-ph"></div><div><b>Cotton briefs, pack of 3</b><br><span class="mono muted">₹499</span> <span class="pill bad">Not returnable</span><div class="why bad">Innerwear can't be returned <span>for hygiene reasons.</span></div></div></div>
+      <div class="spacer"></div><button class="btn primary">Continue with 2 items</button>`,
+     notes:["The <b>eligibility engine</b> runs on every item and always shows <b>why</b>, never just a greyed-out checkbox.","This is a <b>mixed basket</b> (some items allowed, some not), which the test plan asks for.","Rules shown: 30 days standard, 10 days electronics, innerwear and perishables never."]},
+    {name:"Reason + photo",html:`
+      <h3>What's wrong with them?</h3>
+      <div class="field"><span class="lbl">Cotton kurta</span><div class="input">Damaged or defective ▾</div></div>
+      <div class="field"><span class="lbl">Steel water bottle</span><div class="input">Changed my mind ▾</div></div>
+      <div class="field"><span class="lbl">Tell us more (optional)</span><div class="input ph" style="min-height:60px">Stitching came apart after one wash</div></div>
+      <div class="upload">📷 Add a photo<br><small>JPG or PNG up to 5 MB</small></div>
+      <div class="spacer"></div><button class="btn primary">Continue</button>`,
+     notes:["Reasons come from a <b>fixed dropdown</b>, so the manager dashboard can count \"top reasons\".","The photo is <b>stored locally</b> on the server, as the brief says.","Photo could be required only for \"Damaged\" reasons."]},
+    {name:"Refund method",html:`
+      <h3>How should we refund you?</h3>
+      <div class="radio on"><span class="dot"></span><div><b>Original payment</b><br><small class="muted">UPI · 5–7 days after inspection</small></div></div>
+      <div class="radio"><span class="dot"></span><div><b>Store credit</b><br><small class="muted">Instant after inspection</small></div></div>
+      <div class="panel" style="padding:10px"><dl class="kv"><dt>Kurta</dt><dd class="mono">₹1,299</dd><dt>Bottle</dt><dd class="mono">₹649</dd><dt><b>Estimated</b></dt><dd class="mono"><b>₹1,948</b></dd></dl>
+      <small class="muted">The final amount is confirmed after inspection. Items graded C (damaged) get 50%.</small></div>
+      <div class="spacer"></div><button class="btn primary">Submit return request</button>`,
+     notes:["Say <b>\"estimated\"</b> because the warehouse grade can change the amount.","Tell the customer about the Grade C rule now, so a 50% refund later is no surprise."]},
+    {name:"Return label",html:`
+      <h3>Return approved ✓</h3><p class="muted" style="margin:0">Print this label or show the QR code at the courier counter.</p>
+      <div class="label-card">${qr()}<div style="text-align:center"><b class="mono">RET-2026-04817</b><br><small class="muted">2 items · ReturnRight Warehouse, Pune 411014</small></div></div>
+      <button class="btn">Download label (PDF)</button>
+      <div class="spacer"></div><button class="btn primary">Track my return</button>`,
+     notes:["A <b>mock label</b>: the QR code just contains the return ID.","The warehouse agent scans this exact code on the inspection screen."]},
+    {name:"Status timeline",html:`
+      <h3>Return RET-2026-04817</h3>
+      <div class="tl">
+        <div class="tl-row done"><div class="tl-rail"><span class="tl-dot">✓</span><span class="tl-line"></span></div><div><b>Requested</b><small>18 Nov, 10:42</small></div></div>
+        <div class="tl-row done"><div class="tl-rail"><span class="tl-dot">✓</span><span class="tl-line"></span></div><div><b>Approved</b><small>18 Nov, 10:42 · automatic</small></div></div>
+        <div class="tl-row now"><div class="tl-rail"><span class="tl-dot"></span><span class="tl-line"></span></div><div><b>In transit</b><small>Picked up 19 Nov · usually 2 days</small></div></div>
+        <div class="tl-row"><div class="tl-rail"><span class="tl-dot"></span><span class="tl-line"></span></div><div><b>Received</b><small>At warehouse</small></div></div>
+        <div class="tl-row"><div class="tl-rail"><span class="tl-dot"></span><span class="tl-line"></span></div><div><b>Inspected</b><small>Condition checked</small></div></div>
+        <div class="tl-row"><div class="tl-rail"><span class="tl-dot"></span></div><div><b>Refunded</b><small>To UPI</small></div></div>
+      </div>
+      <div class="spacer"></div><p class="muted" style="font-size:12px;margin:0">Come back to this page using your order number and email.</p>`,
+     notes:["This stops customers <b>chasing status by email</b>, which is the main pain point in the brief.","If a return is rejected, the last step turns red and shows the agent's reason."]}
+  ];
+  let cur=0;
+  const scr=document.getElementById("phoneScreen"),nt=document.getElementById("custNotes"),jump=document.getElementById("jump");
+  steps.forEach((s,i)=>{const b=document.createElement("button");b.textContent=(i+1)+". "+s.name;b.addEventListener("click",()=>render(i));jump.appendChild(b);});
+  function render(i){
+    cur=i;const s=steps[i];
+    const bar='<div class="stephead"><span>Step '+(i+1)+' of 6</span><span>'+s.name+'</span></div><div class="stepper">'+steps.map((_,k)=>'<i class="'+(k<=i?'on':'')+'"></i>').join("")+'</div>';
+    scr.innerHTML=bar+s.html;
+    nt.innerHTML=s.notes.map(n=>'<div class="note">'+n+'</div>').join("");
+    document.getElementById("stepCount").textContent=(i+1)+" / 6";
+    document.getElementById("prevStep").disabled=i===0;
+    document.getElementById("nextStep").disabled=i===steps.length-1;
+    [...jump.children].forEach((b,k)=>b.classList.toggle("cur",k===i));
+  }
+  document.getElementById("prevStep").addEventListener("click",()=>cur>0&&render(cur-1));
+  document.getElementById("nextStep").addEventListener("click",()=>cur<steps.length-1&&render(cur+1));
+  render(0);
+
+  /* warehouse grading */
+  const fmt=n=>"₹"+n.toLocaleString("en-IN");
+  function whCalc(){
+    let total=0,parts=[];
+    document.querySelectorAll(".grades").forEach(g=>{
+      const p=+g.dataset.price,sel=g.querySelector('[aria-pressed="true"]').dataset.g;
+      const amt=sel==="C"?Math.round(p/2):p;total+=amt;parts.push(sel+": "+fmt(amt));
+    });
+    document.getElementById("whTotal").textContent=fmt(total);
+    document.getElementById("whBreak").textContent="("+parts.join(" + ")+")";
+  }
+  document.querySelectorAll(".grades").forEach(g=>g.addEventListener("click",e=>{
+    const b=e.target.closest(".grade");if(!b)return;
+    g.querySelectorAll(".grade").forEach(x=>x.setAttribute("aria-pressed",x===b?"true":"false"));whCalc();
+  }));
+  whCalc();
+
+  /* finance idempotent pay */
+  let state="idle";
+  const pay=document.getElementById("payBtn"),msg=document.getElementById("payMsg"),led=document.getElementById("ledgerRows");
+  pay.addEventListener("click",()=>{
+    msg.hidden=false;
+    if(state==="idle"){
+      state="paying";pay.textContent="Paying…";msg.style.background="var(--accent-soft)";msg.textContent="Sending to mock gateway with key refund:RET-04790:item-1";
+      setTimeout(()=>{state="paid";pay.textContent="Paid ✓ (click again to test)";
+        msg.style.background="var(--ok-soft)";msg.innerHTML="Paid. Gateway reference <span class='mono'>MOCK-TXN-88213</span>";
+        led.innerHTML='<tr><td class="mono">20 Nov 14:02</td><td>Refund debit · MOCK-TXN-88213</td><td class="num">₹54,990</td></tr>';},1100);
+    }else if(state==="paid"){
+      msg.style.background="var(--warn-soft)";
+      msg.innerHTML="Already paid. Same idempotency key, so the gateway returned the original result <span class='mono'>MOCK-TXN-88213</span>. <b>No second payment.</b>";
+    }
+  });
+
+  /* manager bars */
+  const cats=[["Fashion",18.9],["Electronics",12.4],["Home & Kitchen",7.2],["Beauty",5.1],["Innerwear",null],["Grocery",null]];
+  document.getElementById("catBars").innerHTML=cats.map(([n,v])=>v===null
+    ?'<div class="bar na"><span>'+n+'</span><div class="track"></div><span class="val" style="font-size:11px">n/a</span></div>'
+    :'<div class="bar"><span>'+n+'</span><div class="track"><div class="fillb" style="width:'+(v/20*100)+'%"></div></div><span class="val">'+v+'%</span></div>').join("")
+    +'<small class="muted">Innerwear and Grocery are not returnable.</small>';
+  const rs=[["Size doesn't fit",34],["Damaged",21],["Not as described",17],["Changed mind",15],["Arrived late",8],["Other",5]];
+  document.getElementById("reasonBars").innerHTML=rs.map(([n,v])=>'<div class="bar"><span>'+n+'</span><div class="track"><div class="fillb" style="width:'+(v/40*100)+'%"></div></div><span class="val">'+v+'%</span></div>').join("");
+})();
+</script>
