@@ -7,9 +7,6 @@ const YEAR = new Date().getFullYear()
 export default function PublicLayout() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-3 focus:shadow-pop">
-        Skip to content
-      </a>
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <Logo />
@@ -23,7 +20,7 @@ export default function PublicLayout() {
           </nav>
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 outline-none px-4 py-6 sm:px-6 sm:py-10">
         <Outlet />
       </main>
       <footer className="border-t border-line bg-surface">

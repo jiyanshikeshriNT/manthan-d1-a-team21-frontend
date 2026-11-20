@@ -45,7 +45,7 @@ function SortHeader({ label, k, sort, onSort, align }) {
  */
 export default function QueueTable({ rows, sort, onSort, onOpen }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card">
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card" role="region" aria-label="Approval queue" tabIndex={0}>
       <table className="w-full min-w-[46rem] text-left text-sm">
         <caption className="sr-only">Returns waiting for a finance decision</caption>
         <thead className="border-b border-line bg-canvas text-xs tracking-wide text-muted">
@@ -66,9 +66,9 @@ export default function QueueTable({ rows, sort, onSort, onOpen }) {
                   type="button"
                   onClick={() => onOpen(r.returnId)}
                   className="grid min-h-11 content-center rounded-md text-left underline-offset-2 hover:underline"
-                  aria-label={`Review return ${r.returnId}`}
                 >
-                  <span className="font-mono font-medium text-accent">{r.returnId}</span>
+                  {/* Visible text is part of the name (WCAG 2.5.3), so voice users can say what they see. */}
+                  <span className="font-mono font-medium text-accent"><span className="sr-only">Review return </span>{r.returnId}</span>
                   <span className="text-xs text-muted">Order {r.orderNumber}</span>
                 </button>
               </th>
