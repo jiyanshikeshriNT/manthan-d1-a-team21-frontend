@@ -6,6 +6,8 @@ import { RouteErrorFallback } from './components/ErrorBoundary'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
+import ReturnPolicyPage from './pages/legal/ReturnPolicyPage'
+import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage'
 import ReturnWizardPage from './pages/customer/return-wizard/ReturnWizardPage'
 import ReturnDetailPage from './pages/customer/ReturnDetailPage'
 import InspectPage from './pages/warehouse/InspectPage'
@@ -26,6 +28,8 @@ export const router = createBrowserRouter([
           { path: '/return/new', element: <ReturnWizardPage /> },
           { path: '/return/:returnId', element: <ReturnDetailPage /> },
           { path: '/login', element: <LoginPage /> },
+          { path: '/return-policy', element: <ReturnPolicyPage /> },
+          { path: '/privacy', element: <PrivacyPolicyPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

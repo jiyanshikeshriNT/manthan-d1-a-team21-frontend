@@ -1,5 +1,7 @@
 // Customer-facing return rules and microcopy. Numbers here mirror the backend rules in CLAUDE.md.
 
+/** Days after delivery an item can be returned (day 0 = delivery day). */
+export const RETURN_WINDOW_DAYS = { STANDARD: 30, ELECTRONICS: 10 }
 export const GRADE_C_REFUND_FACTOR = 0.5
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
