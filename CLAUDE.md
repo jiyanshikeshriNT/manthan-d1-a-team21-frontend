@@ -20,7 +20,8 @@ This file is the shared team reference. It is checked in. Personal preferences d
 ## Architecture
 - `src/main.jsx`: starts MSW when mocks are on, then mounts `ErrorBoundary` › `QueryClientProvider` › `RouterProvider` + `Toaster`.
 - `src/router.jsx`: all routes. A route `errorElement` catches render errors.
-  - Public (`PublicLayout`, mobile-first header): `/`, `/return/new` (wizard), `/return/:returnId` (status), `/login`
+  - Public (`PublicLayout`, mobile-first; header has only the logo, footer links the policies): `/`, `/return/new` (wizard), `/return/:returnId` (status), `/login`, `/return-policy`, `/privacy`
+  - `src/pages/legal/`: the two policy pages (placeholder text, flagged as such on the page) on a shared `PolicyPage` shell. The return policy takes every number from `src/domain`.
   - Staff (`StaffLayout`), each behind `<RequireRole roles=[…]>`: `/warehouse` (WAREHOUSE, MANAGER), `/finance` (FINANCE, MANAGER), `/manager` (MANAGER)
 - `src/auth/`:
   - `session.js` stores `{token, role}` in memory, mirrored to sessionStorage.
