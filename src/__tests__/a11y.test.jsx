@@ -5,7 +5,9 @@ import { renderRoute } from '../test/renderRoute'
 import { axeViolations } from '../test/axe'
 import { FIX } from '../mocks/db'
 
-const T = { timeout: 4000 }
+// Generous: the dashboard is lazy-loaded (Recharts) and can take a few seconds while other test files run in parallel.
+const T = { timeout: 12_000 }
+const TEST_TIMEOUT = 20_000
 
 // Every page, rendered through the real router and layouts, must have no axe violations.
 // Staff workspaces are single-role, matching the backend's /api/v1/{role} rules.
@@ -29,7 +31,7 @@ describe('axe: every page', () => {
     renderRoute(path, opts)
     await ready()
     expect(await axeViolations()).toEqual([])
-  })
+  }, TEST_TIMEOUT)
 
   it('warehouse inspection form has no violations', async () => {
     const user = userEvent.setup()
@@ -37,7 +39,7 @@ describe('axe: every page', () => {
     await user.type(await screen.findByLabelText(/scan return label/i), `${FIX.received}{Enter}`)
     await screen.findByRole('form', { name: /inspect return/i }, T)
     expect(await axeViolations()).toEqual([])
-  })
+  }, TEST_TIMEOUT)
 
   it('finance review drawer has no violations', async () => {
     const user = userEvent.setup()
@@ -45,7 +47,7 @@ describe('axe: every page', () => {
     await user.click(await screen.findByRole('button', { name: new RegExp(`review return\\s*${FIX.awaitingFinance}`, 'i') }, T))
     await screen.findByRole('button', { name: 'Approve' }, T)
     expect(await axeViolations()).toEqual([])
-  })
+  }, TEST_TIMEOUT)
 })
 
 describe('focus management on route change', () => {

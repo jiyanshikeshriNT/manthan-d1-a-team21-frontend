@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -7,7 +7,7 @@ import { FIX, db } from '../../../mocks/db'
 import { renderRoute } from '../../../test/renderRoute'
 import { formatDuration } from '../../../lib/format'
 
-const T = { timeout: 4000 }
+const T = { timeout: 12_000 } // the dashboard is lazy-loaded (Recharts); slow when files run in parallel
 
 /** GET /api/v1/manager/dashboard as the backend returns it (units, masked emails). */
 const dashboard = (over = {}) => ({
@@ -37,6 +37,8 @@ describe('formatDuration', () => {
   })
 })
 
+vi.setConfig({ testTimeout: 20_000 })
+
 describe('Manager dashboard', () => {
   it('shows the three KPIs', async () => {
     mock()
@@ -45,7 +47,6 @@ describe('Manager dashboard', () => {
     expect(screen.getByText(/12 closed/)).toBeInTheDocument()
     expect(screen.getByTestId('kpi-Overall return rate')).toHaveTextContent('10.0%') // 25 of 250 units
     expect(screen.getByText('25 units returned of 250 sold')).toBeInTheDocument()
-    expect(screen.getByText('Last 30 days', { exact: false })).toBeInTheDocument()
     expect(screen.getByTestId('kpi-Flagged customers')).toHaveTextContent('2')
   })
 

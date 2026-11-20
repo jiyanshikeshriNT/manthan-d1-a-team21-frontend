@@ -156,6 +156,39 @@ function toFinanceDetail(refund) {
   }
 }
 
+/**
+ * Minimal multipart/form-data reader: text fields, plus name/filename/type/size of file parts.
+ * Done by hand because request.formData() is unreliable under jsdom (its File class replaces Node's).
+ */
+async function readMultipart(request) {
+  const boundary = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(request.headers.get('content-type') ?? '')
+  if (!boundary) return { fields: {}, files: [] }
+  const bytes = new Uint8Array(await request.arrayBuffer())
+  const raw = new TextDecoder('latin1').decode(bytes) // one char per byte, so indexes are byte offsets
+  const utf8 = (from, to) => new TextDecoder().decode(bytes.subarray(from, to))
+  const delimiter = `--${boundary[1] ?? boundary[2]}`
+  const fields = {}
+  const files = []
+  let at = raw.indexOf(delimiter)
+  while (at !== -1) {
+    const start = at + delimiter.length
+    if (raw.startsWith('--', start)) break
+    const next = raw.indexOf(delimiter, start)
+    if (next === -1) break
+    const headerEnd = raw.indexOf('\r\n\r\n', start)
+    const head = raw.slice(start, headerEnd)
+    const bodyStart = headerEnd + 4
+    const bodyEnd = next - 2 // strip the CRLF before the next delimiter
+    const name = /name="([^"]*)"/i.exec(head)?.[1]
+    const filename = /filename="([^"]*)"/i.exec(head)?.[1]
+    const type = /content-type:\s*([^\r\n]+)/i.exec(head)?.[1]?.trim() ?? ''
+    if (filename !== undefined) files.push({ name, filename, type, size: bodyEnd - bodyStart, text: () => utf8(bodyStart, bodyEnd) })
+    else fields[name] = utf8(bodyStart, bodyEnd)
+    at = next
+  }
+  return { fields, files }
+}
+
 const invalid = (detail, current) => problem('INVALID_TRANSITION', detail, current ? { currentStatus: current } : {})
 const rmaParam = (params) => String(params.rma ?? '').toUpperCase()
 
@@ -198,11 +231,11 @@ export const handlers = [
     await wait(800)
     const order = customerOrder(request)
     if (!order) return expired()
-    const form = await request.formData()
-    const part = form.get('request')
+    const form = await readMultipart(request)
+    const part = form.fields.request ?? form.files.find((f) => f.name === 'request')?.text()
     let body
     try {
-      body = JSON.parse(typeof part === 'string' ? part : await part.text())
+      body = JSON.parse(part)
     } catch {
       return problem('VALIDATION_FAILED', 'The request is missing a part or has an invalid value.')
     }
@@ -221,10 +254,11 @@ export const handlers = [
       if (i.reasonCode === 'OTHER' && !i.reasonText?.trim()) return problem('VALIDATION_FAILED', `Please tell us why you're returning item ${i.orderLineId}.`)
     }
     const photos = {}
-    for (const [name, value] of form.entries()) {
-      if (!name.startsWith('photos_')) continue
-      if (!['image/jpeg', 'image/png'].includes(value.type)) return problem('PHOTO_INVALID', 'Photos must be JPEG or PNG images.')
-      photos[name.slice(7)] = (photos[name.slice(7)] ?? 0) + 1
+    for (const file of form.files) {
+      if (!file.name.startsWith('photos_')) continue
+      if (!['image/jpeg', 'image/png'].includes(file.type)) return problem('PHOTO_INVALID', 'Photos must be JPEG or PNG images.')
+      if (file.size > 5 * 1024 * 1024) return problem('PHOTO_INVALID', 'Each photo must be 5 MB or smaller.')
+      photos[file.name.slice(7)] = (photos[file.name.slice(7)] ?? 0) + 1
     }
     const refusals = []
     for (const i of items) {
@@ -334,7 +368,7 @@ export const handlers = [
     await wait(600)
     const denied = guard(request, 'WAREHOUSE')
     if (denied) return denied
-    const image = (await request.formData()).get('image')
+    const image = (await readMultipart(request)).files.find((f) => f.name === 'image')
     if (!image || !image.size) return problem('LABEL_INVALID', 'Upload a photo of the label.')
     // The fake can't read images: it "decodes" the first parcel that is on its way.
     const rec = [...db.returns.values()].find((r) => r.status === 'IN_TRANSIT')

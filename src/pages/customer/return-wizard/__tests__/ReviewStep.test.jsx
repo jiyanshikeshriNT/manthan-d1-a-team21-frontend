@@ -38,12 +38,12 @@ describe('ReviewStep', () => {
     const calls = []
     server.use(
       http.post('*/api/v1/customer/returns', async ({ request }) => {
-        const form = await request.formData()
+        const text = await request.text()
         calls.push({
           key: request.headers.get('Idempotency-Key'),
           auth: request.headers.get('Authorization'),
-          body: JSON.parse(await form.get('request').text()),
-          photo: form.get('photos_103')?.name,
+          body: JSON.parse(/name="request".*?\r\n\r\n(.*?)\r\n--/s.exec(text)[1]),
+          photo: /name="photos_103"; filename="([^"]+)"/.exec(text)?.[1],
         })
         await delay(150)
         return HttpResponse.json(created, { status: 201 })

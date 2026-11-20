@@ -84,7 +84,7 @@ describe('InspectionForm: keyboard-driven inspection', () => {
         },
       },
     ])
-    expect(onDone).toHaveBeenCalledWith({
+    expect(onDone.mock.calls[0][0]).toEqual({
       returnId: 'RMA-T1', status: 'REFUND_IN_PROGRESS', refundPaise: 194750, outcome: 'REFUND_IN_PROGRESS', refundStatus: 'PENDING',
     })
   })
