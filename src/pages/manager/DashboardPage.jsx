@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Flag, Percent, RotateCw, Timer } from 'lucide-react'
 import { useFlaggedCustomers, useManagerMetrics } from '../../api/manager'
 import Button from '../../components/ui/Button'
@@ -9,6 +9,9 @@ import BarChartPanelBody from './BarChartPanel'
 import FlaggedTable from './FlaggedTable'
 import KpiCard from './KpiCard'
 import Panel from './Panel'
+import ReviewQueue from './ReviewQueue'
+import AuditPanel from './AuditPanel'
+import GatewayPanel from './GatewayPanel'
 
 const nf = new Intl.NumberFormat('en-IN')
 
@@ -26,7 +29,7 @@ function useChartData(metrics) {
         label: c.category,
         value: c.returnable ? c.returnRate : 0,
         display: c.returnable ? formatPercent(c.returnRate) : 'Not returnable',
-        note: c.returnable ? `${nf.format(c.returns)} of ${nf.format(c.orders)} orders` : 'Excluded by policy',
+        note: c.returnable ? `${nf.format(c.returns)} of ${nf.format(c.orders)} units sold` : 'Excluded by policy',
         muted: !c.returnable,
       }))
 
@@ -37,7 +40,7 @@ function useChartData(metrics) {
         label: reasonLabel(r.reason),
         value: r.count,
         display: `${r.count} · ${formatPercent(reasonTotal ? r.count / reasonTotal : 0, 0)}`,
-        note: `${r.count} of ${reasonTotal} returns`,
+        note: `${r.count} of ${reasonTotal} returned items`,
       }))
 
     const top = categories.find((c) => !c.muted)
@@ -49,6 +52,11 @@ function useChartData(metrics) {
 export default function DashboardPage() {
   const metrics = useManagerMetrics()
   const flagged = useFlaggedCustomers()
+  const [auditId, setAuditId] = useState('')
+  const showHistory = (id) => {
+    setAuditId(id)
+    setTimeout(() => document.getElementById('audit-title')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }), 0)
+  }
   const chart = useChartData(metrics.data)
   const period = metrics.data?.periodDays ?? 30
   const customers = flagged.data?.customers ?? []
@@ -92,14 +100,14 @@ export default function DashboardPage() {
           label="Average cycle time"
           icon={Timer}
           value={formatDuration(metrics.data?.avgCycleTimeHours)}
-          detail="From return request to refund"
+          detail={metrics.data ? `Request to refund or rejection · ${nf.format(metrics.data.closedReturns)} closed` : 'Request to refund or rejection'}
           {...metricsState}
         />
         <KpiCard
           label="Overall return rate"
           icon={Percent}
           value={chart?.overall == null ? '—' : formatPercent(chart.overall)}
-          detail={chart && `${nf.format(chart.returns)} returns from ${nf.format(chart.orders)} orders`}
+          detail={chart && `${nf.format(chart.returns)} units returned of ${nf.format(chart.orders)} sold`}
           delay={60}
           {...metricsState}
         />
@@ -114,11 +122,13 @@ export default function DashboardPage() {
         />
       </div>
 
+      <ReviewQueue onHistory={showHistory} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel
           id="by-category"
           title="Return rate by category"
-          description="Returns as a share of orders, highest first"
+          description="Returned units as a share of units sold, highest first"
           {...metricsState}
           isEmpty={chart && chart.orders === 0}
           empty={{ title: 'No orders in this period', text: 'Return rates appear once orders are placed.' }}
@@ -139,7 +149,7 @@ export default function DashboardPage() {
         <Panel
           id="reasons"
           title="Top return reasons"
-          description="Number of returns, with share of all returns"
+          description="Returned items per reason, with share of all returned items"
           {...metricsState}
           isEmpty={chart && chart.reasonTotal === 0}
           empty={{ title: 'No returns yet', text: 'Reasons appear here as customers send items back.' }}
@@ -159,7 +169,7 @@ export default function DashboardPage() {
       <Panel
         id="flagged"
         title="Flagged customers"
-        description="Customers with more than 3 returns in the last 30 days. Their refunds go to finance for review."
+        description="Customers with more than 3 return requests in 30 days. Their new returns wait for your review. Emails are masked."
         {...flaggedState}
         isEmpty={customers.length === 0}
         empty={{ title: 'No customers are flagged', text: 'Customers with more than 3 returns in 30 days will appear here.' }}
@@ -173,6 +183,11 @@ export default function DashboardPage() {
       >
         <FlaggedTable customers={customers} />
       </Panel>
+
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <AuditPanel entityId={auditId} onSearch={setAuditId} />
+        <GatewayPanel />
+      </div>
     </div>
   )
 }

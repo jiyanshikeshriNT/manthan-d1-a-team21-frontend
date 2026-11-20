@@ -2,7 +2,7 @@
 
 Retail returns and refunds portal (Track A): customer returns, warehouse grading, finance refunds, manager dashboard.
 React 19 (JavaScript + JSDoc types) · Vite 8 · Tailwind CSS 4 · React Router 8 (imports from `react-router`) · TanStack Query 5 · MSW 3 · Vitest 5 + Testing Library. Package manager: npm.
-Backend: Spring Boot on http://localhost:8080. API contract: `docs/api-contract.md` (a frontend draft until the backend confirms it).
+Backend: Spring Boot on http://localhost:8080 (`../system`). API contract: `../system/LLD.md` §4 (base path `/api/v1`); `docs/api-contract.md` maps it to the frontend view models.
 Wireframes: `docs/returnright-wireframes.html` (layout reference only; its colours are outdated, the tokens below win).
 
 This file is the shared team reference. It is checked in. Personal preferences do not go here (see "Local preferences").
@@ -14,24 +14,26 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - `npm run lint`: oxlint (config in `.oxlintrc.json`)
 - `npm test`: Vitest, run once. `npm run test:watch` runs in watch mode.
 - Env (`.env.local`, see `.env.example`):
-  - `VITE_USE_MOCKS=true` answers API calls with MSW in the browser.
-  - `VITE_API_BASE_URL` is the API origin for production builds.
+  - Default: the app talks to the real backend. Start it with `.\gradlew.bat bootRun --args="--spring.profiles.active=local,seed"` in `../system`. Seeded staff: `warehouse`, `finance`, `manager` (password `ReturnRight#2026`); seeded orders are `ORD-100001`…`ORD-102000`.
+  - `VITE_USE_MOCKS=true` answers API calls with MSW in the browser instead (same contract).
+  - `VITE_API_BASE_URL` is the API origin for production builds; the backend then needs `app.cors.allowed-origins`.
 
 ## Architecture
 - `src/main.jsx`: starts MSW when mocks are on, then mounts `ErrorBoundary` › `QueryClientProvider` › `RouterProvider` + `Toaster`.
 - `src/router.jsx`: all routes. A route `errorElement` catches render errors.
   - Public (`PublicLayout`, mobile-first; header has only the logo, footer links the policies): `/`, `/return/new` (wizard), `/return/:returnId` (status), `/login`, `/return-policy`, `/privacy`
   - `src/pages/legal/`: the two policy pages (placeholder text, flagged as such on the page) on a shared `PolicyPage` shell. The return policy takes every number from `src/domain`.
-  - Staff (`StaffLayout`), each behind `<RequireRole roles=[…]>`: `/warehouse` (WAREHOUSE, MANAGER), `/finance` (FINANCE, MANAGER), `/manager` (MANAGER)
+  - Staff (`StaffLayout`), each behind `<RequireRole roles=[…]>` with one role, matching the backend's `/api/v1/{role}` rules: `/warehouse` (WAREHOUSE), `/finance` and `/finance/ledger` (FINANCE), `/manager` (MANAGER)
 - `src/auth/`:
-  - `session.js` stores `{token, role}` in memory, mirrored to sessionStorage.
-  - `useSession` is the React hook for it.
+  - `session.js` (staff) stores `{token, username, role}` in memory, mirrored to sessionStorage. Staff use HTTP Basic, so `token` is base64(`user:password`); sign-in verifies it with `GET /api/v1/staff/me` first.
+  - `customerSession.js` stores the order-scoped bearer token from `POST /api/v1/customer/session` (`{accessToken, expiresAt, orderNumber}`, 2 h TTL).
+  - `useSession` is the React hook for the staff session.
   - `RequireRole` sends signed-out users to `/login?next=…`, and shows "no access" when the role is wrong.
 - `src/api/`:
-  - `client.js`: `request()` adds the bearer token and `Idempotency-Key`, and turns error responses into `ApiError{status, code, message}`. A 401 redirects to `/login`.
-  - `hooks.js`: the TanStack hooks and the JSDoc types for the contract.
+  - `client.js`: `request()` picks auth by path (`/api/v1/customer/*` → customer bearer, other `/api/v1/*` → staff Basic), adds `Idempotency-Key`, and turns ProblemDetail errors into `ApiError{status, code, message, data}` (`data.items` holds per-item refusals). A staff 401 redirects to `/login`; a customer 401 clears the customer session and the page asks the customer to confirm the order again. `responseType: 'blob'` is used for the label QR PNG.
+  - `hooks.js` (customer), `staff.js` (sign-in, warehouse, finance, ledger), `manager.js` (dashboard, review queue, audit trail, gateway faults): TanStack hooks plus adapters (`toReturnDetail`, `toWarehouseReturn`, `toFinanceReturn`, `toMetrics`…) that map backend DTOs to the view models the screens use. Keep the JSDoc typedefs in sync with `../system/LLD.md`.
   - `queryClient.js`: sends API errors to the global toast. Calls that show their own errors set `meta: { silent: true }`.
-- `src/mocks/`: MSW handlers and data (browser worker plus a node server for tests). Staff mock logins are in `data.js`.
+- `src/mocks/`: MSW handlers and data that mirror the backend contract (browser worker when `VITE_USE_MOCKS=true`, plus a node server for tests).
 - `src/components/ui/`: `Button`, `Input`/`Select`/`Textarea` (built on `Field`, which wires `aria-describedby`), `Card`, `Badge`, `StatusBadge`, `Alert`, `Spinner`, `EmptyState`. Also `StatusTimeline`, `ErrorBoundary`, and `toast/` (a store usable outside React, plus `Toaster`).
 - `src/pages/customer/return-wizard/`: the 4-step wizard.
   - State lives in one `useReducer` (`wizardState.js`), so data survives Back.
@@ -41,22 +43,25 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - `src/pages/manager/`: dashboard.
   - `KpiCard`, `Panel` (loading skeleton, error with retry, empty state), `BarChartPanel`, `FlaggedTable` (sortable, `aria-sort`).
   - `BarChartPanel` is a Recharts single-series horizontal bar chart. It has one hue (`text-chart-N` plus `fill="currentColor"`), direct value labels in ink, a tooltip, a `role="img"` summary in `aria-label`, and a visually hidden data table that "View as table" reveals.
-  - Hooks are in `src/api/manager.js`.
+  - Hooks are in `src/api/manager.js`. One `GET /manager/dashboard` request backs both the metrics and the flagged-customer hooks (`select`).
+  - `ReviewQueue` approves or rejects flagged customers' returns (PENDING_REVIEW); `AuditPanel` looks up the audit trail by return UUID or refund id; `GatewayPanel` switches the mock gateway's fault mode (non-prod only, hidden on 404).
 - `src/pages/warehouse/`: keyboard-first inspection.
-  - `ScanBox` takes focus on load and after each finished return.
-  - `InspectionForm` moves focus to the first grade button after a scan, then reads keys for the focused item row: `1/2/3` grade, `a/p/r` decision, `Ctrl+Enter` submit.
-  - It sends the return's `version`. `STALE_VERSION` and `ILLEGAL_TRANSITION` show a "Reload return" button.
-  - `ItemInspection` is one row. `PhotoLightbox` is shared with finance.
-- `src/pages/finance/`: `ApprovalsPage` (filter, sort by age or amount), `QueueTable`, `FinanceDrawer`.
-  - The drawer has a confirm step showing the amount, a required note for Reject, and an Idempotency-Key per confirmed attempt.
-  - It handles `SEPARATION_OF_DUTIES` (403), stale versions, and `REFUND_FAILED` with a retry button.
+  - `ScanBox` takes focus on load and after each finished return. It accepts a signed label code (`RR-RMA-…-hmac`, looked up via `/warehouse/labels/{code}`), a typed RMA, or a photo of the label (`/warehouse/labels/decode`). An IN_TRANSIT parcel is marked RECEIVED on scan.
+  - `InspectionForm` moves focus to the first grade button after a scan, then reads keys for the focused item row: `1/2/3` grade, `a/p/r` decision, `Ctrl+Enter` submit. Every item needs a grade (the backend requires it, also for Reject). Partial is sent as ACCEPTED with `acceptedQty`.
+  - `INVALID_TRANSITION` and `CONCURRENT_MODIFICATION` (409) show a "Reload return" button (`GET /warehouse/returns/{rma}`).
+  - `ItemInspection` is one row. It shows the customer's photo count; there is no staff photo endpoint yet, so `PhotoLightbox` is unused for now.
+- `src/pages/finance/`: `ApprovalsPage` (filter: awaiting approval / needs retry; sort by age or amount), `QueueTable`, `FinanceDrawer`, `LedgerPage`.
+  - The queue lists refunds (`/finance/refunds?status=` AWAITING_APPROVAL, FAILED, UNKNOWN) and opens the drawer by refund id (`GET /finance/refunds/{id}`).
+  - The drawer has a confirm step showing the amount and a required reason for Reject. Retry is offered for FAILED and UNKNOWN; the server reuses one gateway key per return, so nothing is paid twice.
 - `src/api/staff.js`: the warehouse and finance hooks and types.
 - `src/lib/refund.js`: refund preview maths (A and B 100%, C 50%, reject 0, integer paise, round half up). It must match the backend.
 - `src/components/ui/Modal.jsx` (native `<dialog>`, `center` or `drawer`), `Segmented.jsx` (large radio buttons), `Kbd.jsx`.
-- `src/pages/customer/ReturnDetailPage.jsx` + `return-detail/`: status page.
-  - Polls `useReturn` every 15 s until a final status. TanStack pauses it while the tab is hidden and refetches on focus.
-  - The timeline reloads when the status changes (its query key includes the status).
-  - `LabelCard` prints only the label through the `.print-label` rules in `index.css`.
+- `src/pages/customer/return-wizard/`: lookup opens the customer session; step 4 sends one multipart `POST /customer/returns` (JSON part `request` + `photos_{orderLineId}`) with the wizard's Idempotency-Key, and lists per-item reasons from a 422.
+- `src/pages/customer/ReturnDetailPage.jsx` + `return-detail/`: status page (`/return/:rma`).
+  - Polls `useReturn` every 15 s until a final status. TanStack pauses it while the tab is hidden and refetches on focus. The timeline comes with the return.
+  - Without a valid customer session (401) it shows `VerifyOrderCard` (order number + email) instead.
+  - `ReturnActions`: "I've shipped my parcel" (APPROVED → IN_TRANSIT) and "Cancel return", offered only where `TRANSITIONS` allows.
+  - `LabelCard` shows the label code and the QR PNG (fetched with the bearer token) and prints only the label through the `.print-label` rules in `index.css`.
   - `ItemsTable` shows status, grade and refund, with the Grade C 50% note.
 - `src/components/StatusTimeline.jsx`: vertical on mobile, horizontal from `md`. It draws the steps from `domain/timelineModel.js` (`buildTimeline`, pure and tested).
 - `src/domain/`:
@@ -72,8 +77,8 @@ This file is the shared team reference. It is checked in. Personal preferences d
 ## Conventions
 - Money is integer paise everywhere. Display it only through `formatINR`.
 - JS + JSDoc, no TypeScript. Keep the JSDoc typedefs in `src/api/hooks.js` in sync with `docs/api-contract.md` and the mocks.
-- Staff writes send the `version` the user saw. Never retry a write that got a 409 without reloading first.
-- Every submit button uses `loading`/`disabled` plus a ref guard against double submits. Create-type POSTs send an `Idempotency-Key`.
+- Never retry a staff write that got a 409 (`INVALID_TRANSITION`, `CONCURRENT_MODIFICATION`) without reloading first. The backend checks state server-side; the API carries no version field.
+- Every submit button uses `loading`/`disabled` plus a ref guard against double submits. Creating a return sends an `Idempotency-Key` (one per wizard session).
 - Form errors go through `Field`, so they are tied to inputs with `aria-describedby`/`aria-invalid`.
 - The order lookup shows one generic failure message, never a hint about which field is wrong. A 429 has its own message.
 - **Accessibility tests:** `src/__tests__/a11y.test.jsx` runs axe-core on every route through the real router (`renderRoute()` in `src/test/renderRoute.jsx`). A new page or state must be added there and must pass.
@@ -82,17 +87,17 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - **Charts:** one series means one hue and no legend; labels go directly on the marks in ink. Every chart needs a `role="img"` summary and a table alternative. Use `chart-*` tokens only, and never `chart-2` for text.
 - Tests: Vitest + Testing Library + the MSW node server (`src/test/setup.js`). Render wizard steps with `renderStep()` from `src/test/renderWithProviders.jsx`.
 
-## Return state machine (must match the backend)
-- REQUESTED → APPROVED | REJECTED
-- APPROVED → IN_TRANSIT
+## Return state machine (mirrors the backend's `ReturnStateMachine`)
+- REQUESTED → APPROVED | PENDING_REVIEW | CANCELLED
+- PENDING_REVIEW → APPROVED | REJECTED | CANCELLED
+- APPROVED → IN_TRANSIT | CANCELLED
 - IN_TRANSIT → RECEIVED
 - RECEIVED → INSPECTED
-- INSPECTED → PENDING_FINANCE | REFUND_PROCESSING | REJECTED
-- PENDING_FINANCE → REFUND_PROCESSING | REJECTED
-- REFUND_PROCESSING → REFUNDED | REFUND_FAILED
-- REFUND_FAILED → REFUND_PROCESSING (retry)
-- REFUNDED and REJECTED are final.
-- Customers see PENDING_FINANCE and REFUND_PROCESSING as "Inspected", and REFUND_FAILED as "Refund retrying" (`toCustomerStep`, `StatusBadge`, `buildTimeline`). The customer API never exposes the flagged state.
+- INSPECTED → AWAITING_FINANCE | REFUND_IN_PROGRESS | REJECTED
+- AWAITING_FINANCE → REFUND_IN_PROGRESS | REJECTED
+- REFUND_IN_PROGRESS → REFUNDED
+- REFUNDED, REJECTED and CANCELLED are final.
+- Customers see PENDING_REVIEW as "Requested", and AWAITING_FINANCE and REFUND_IN_PROGRESS as "Inspected" (`toCustomerStep`, `StatusBadge`, `buildTimeline`). A failed or unknown payment keeps the return in REFUND_IN_PROGRESS; the refund's own status (FAILED, UNKNOWN…) is only shown to finance.
 - Every state change is written to the audit log by the backend.
 - Never offer a transition in the UI that is not in `TRANSITIONS`.
 
@@ -100,8 +105,8 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - Return window: 30 days standard, 10 days for electronics. Innerwear and perishables are never returnable.
 - Warehouse grades: A = 100% refund, B = 100% refund, C = 50% refund.
 - Refunds above ₹10,000 need finance approval. Smaller refunds are paid automatically.
-- A customer with more than 3 returns in 30 days is flagged for review.
-- Refunds are idempotent. Every pay request sends `Idempotency-Key: refund:<returnId>:<itemId>`. Disable the button while a request is in flight, but the backend is the real guarantee.
+- A customer with more than 3 return requests in 30 days is flagged: the new return waits in PENDING_REVIEW for a manager.
+- Refunds are idempotent on the server: one refund per return and a deterministic gateway key (`RR-REFUND-{returnId}`); approving twice is a no-op. Disable the button while a request is in flight, but the backend is the real guarantee.
 - Refusal messages always say why, e.g. "Electronics can be returned within 10 days. This was delivered 14 days ago."
 
 ## Design system
@@ -183,7 +188,9 @@ Use in this order for category return rates, top reasons and cycle-time charts: 
 ## Known gaps (remove each line when resolved)
 - No dark theme is specified. Do not add dark values until the team agrees on a palette that passes the same contrast checks.
 - Grade B has no assigned colour.
-- No CI pipeline yet. The real backend is not connected; screens run on MSW mocks.
+- No CI pipeline yet.
+- Staff cannot view customer photos: the backend stores them but has no staff photo endpoint yet, so screens show the photo count only.
+- Staff Basic credentials sit in sessionStorage for the tab's lifetime (no token exchange on the backend yet).
 
 ## Keeping this file current (mandatory)
 - Update this file **in the same PR** as any change to commands, scripts, dependencies, routes or folder structure, design tokens, status enums or transitions, grading or refund rules, or team workflow.

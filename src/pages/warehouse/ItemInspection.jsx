@@ -52,9 +52,16 @@ export default function ItemInspection({ item, line, errors = {}, onChange, onFo
             <img src={item.photoUrl} alt="" className="size-full object-cover transition-transform group-hover:scale-105" />
           </button>
         ) : (
-          <span className="grid size-20 shrink-0 place-items-center rounded-lg border border-dashed border-line-strong text-muted" title="No photo">
+          <span
+            className="grid size-20 shrink-0 place-items-center content-center gap-1 rounded-lg border border-dashed border-line-strong text-center text-xs text-muted"
+            title={item.photoCount ? 'Customer photos are on file' : 'No photo'}
+          >
             <ImageIcon className="size-6" aria-hidden="true" />
-            <span className="sr-only">No customer photo</span>
+            {item.photoCount > 0 ? (
+              <span className="tabular">{item.photoCount} {item.photoCount === 1 ? 'photo' : 'photos'}</span>
+            ) : (
+              <span className="sr-only">No customer photo</span>
+            )}
           </span>
         )}
         <div className="grid min-w-0 flex-1 gap-0.5">

@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { LogOut } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import Logo from '../components/Logo'
 import Button from '../components/ui/Button'
 import { clearSession } from '../auth/session'
@@ -7,8 +8,9 @@ import { useSession } from '../auth/useSession'
 import { cx } from '../lib/format'
 
 const NAV = [
-  { to: '/warehouse', label: 'Inspection', roles: ['WAREHOUSE', 'MANAGER'] },
-  { to: '/finance', label: 'Refund approvals', roles: ['FINANCE', 'MANAGER'] },
+  { to: '/warehouse', label: 'Inspection', roles: ['WAREHOUSE'] },
+  { to: '/finance', label: 'Refund approvals', roles: ['FINANCE'], end: true },
+  { to: '/finance/ledger', label: 'Ledger', roles: ['FINANCE'] },
   { to: '/manager', label: 'Dashboard', roles: ['MANAGER'] },
 ]
 
@@ -18,10 +20,12 @@ const ROLE_LABEL = { WAREHOUSE: 'Warehouse', FINANCE: 'Finance', MANAGER: 'Manag
 export default function StaffLayout() {
   const session = useSession()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const items = NAV.filter((n) => session && n.roles.includes(session.role))
 
   function signOut() {
     clearSession()
+    queryClient.clear() // never show one user's cached data to the next
     navigate('/login', { replace: true })
   }
 
@@ -35,6 +39,7 @@ export default function StaffLayout() {
               <NavLink
                 key={n.to}
                 to={n.to}
+                end={n.end}
                 className={({ isActive }) =>
                   cx(
                     'inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium',
@@ -46,7 +51,8 @@ export default function StaffLayout() {
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {session?.username && <span className="hidden text-sm text-muted sm:inline">{session.username}</span>}
             {session && (
               <Button variant="ghost" onClick={signOut}>
                 <LogOut className="size-4" aria-hidden="true" />
@@ -61,6 +67,7 @@ export default function StaffLayout() {
               <NavLink
                 key={n.to}
                 to={n.to}
+                end={n.end}
                 className={({ isActive }) =>
                   cx('inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium', isActive ? 'border-primary text-primary' : 'border-transparent text-muted')
                 }

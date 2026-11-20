@@ -1,5 +1,5 @@
-import { AlertTriangle, BadgeCheck, Check, ClipboardList, Clock, SearchCheck, Truck, PackageCheck, Wallet, XCircle } from 'lucide-react'
-import { STATUS } from '../domain/returnStatus'
+import { AlertTriangle, Ban, BadgeCheck, Check, ClipboardList, Clock, SearchCheck, Truck, PackageCheck, Wallet, XCircle } from 'lucide-react'
+import { STATUS, isClosedWithoutRefund } from '../domain/returnStatus'
 import { buildTimeline } from '../domain/timelineModel'
 import { cx, formatDateTime } from '../lib/format'
 
@@ -11,6 +11,7 @@ const ICON = {
   INSPECTED: SearchCheck,
   REFUNDED: Wallet,
   REJECTED: XCircle,
+  CANCELLED: Ban,
 }
 
 const CIRCLE = {
@@ -22,7 +23,7 @@ const CIRCLE = {
 
 /** Small glyph in the corner of the circle: state by icon, not only colour. */
 function Corner({ step }) {
-  const rejected = step.key === STATUS.REJECTED
+  const rejected = isClosedWithoutRefund(step.key)
   if (step.state === 'done') return <Glyph className="bg-success"><Check className="size-3" aria-hidden="true" /></Glyph>
   if (step.state === 'failed') {
     return (
@@ -54,7 +55,7 @@ export default function StatusTimeline({ status, events }) {
       {steps.map((step, i) => {
         const last = i === steps.length - 1
         const Icon = ICON[step.key]
-        const rejected = step.key === STATUS.REJECTED
+        const rejected = isClosedWithoutRefund(step.key)
         const active = step.state === 'current' || step.state === 'failed'
         const delay = { animationDelay: `${i * 90}ms` }
 

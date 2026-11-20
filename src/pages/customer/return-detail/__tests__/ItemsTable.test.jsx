@@ -17,6 +17,17 @@ describe('ItemsTable', () => {
     expect(screen.getByTestId('refund-total')).toHaveTextContent('₹649')
   })
 
+  it('shows a partial acceptance and bases the Grade C note on the accepted units', () => {
+    const items = [{ ...base, status: 'ACCEPTED', grade: 'C', acceptedQty: 1, refundPaise: 32450 }]
+    render(<ItemsTable items={items} estimatedRefundPaise={129800} status="REFUND_IN_PROGRESS" />)
+
+    const row = screen.getByRole('row', { name: /steel water bottle/i })
+    expect(within(row).getByText('1 of 2 accepted')).toBeInTheDocument()
+    expect(within(row).getByText('50% of ₹649')).toBeInTheDocument()
+    expect(screen.getByText('Refund total')).toBeInTheDocument()
+    expect(screen.getByTestId('refund-total')).toHaveTextContent('₹324.50')
+  })
+
   it('shows the estimate and "after inspection" before the item is graded', () => {
     const items = [{ ...base, status: 'AWAITING_INSPECTION', grade: null, refundPaise: null }]
     render(<ItemsTable items={items} estimatedRefundPaise={129800} status="IN_TRANSIT" />)

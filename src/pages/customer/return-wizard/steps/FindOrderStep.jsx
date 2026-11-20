@@ -44,7 +44,7 @@ export default function FindOrderStep() {
       {failure && <Alert tone="danger">{failure}</Alert>}
       <Input
         label="Order number"
-        hint="Starts with RR, for example RR-100245."
+        hint="Starts with ORD, for example ORD-100245."
         autoComplete="off"
         autoCapitalize="characters"
         spellCheck={false}

@@ -13,6 +13,7 @@ import ReturnWizardPage from './pages/customer/return-wizard/ReturnWizardPage'
 import ReturnDetailPage from './pages/customer/ReturnDetailPage'
 import InspectPage from './pages/warehouse/InspectPage'
 import ApprovalsPage from './pages/finance/ApprovalsPage'
+import LedgerPage from './pages/finance/LedgerPage'
 import LazyDashboard from './pages/manager/LazyDashboard'
 
 const guard = (roles, el) => <RequireRole roles={roles}>{el}</RequireRole>
@@ -37,11 +38,12 @@ export const routes = [
         ],
       },
       {
-        // Protected staff area (MANAGER can also open warehouse and finance)
+        // Protected staff area. One role per workspace, matching the backend's /api/v1/{role} access rules.
         element: <StaffLayout />,
         children: [
-          { path: '/warehouse', element: guard(['WAREHOUSE', 'MANAGER'], <InspectPage />), handle: { title: 'Inspect returns' } },
-          { path: '/finance', element: guard(['FINANCE', 'MANAGER'], <ApprovalsPage />), handle: { title: 'Refund approvals' } },
+          { path: '/warehouse', element: guard(['WAREHOUSE'], <InspectPage />), handle: { title: 'Inspect returns' } },
+          { path: '/finance', element: guard(['FINANCE'], <ApprovalsPage />), handle: { title: 'Refund approvals' } },
+          { path: '/finance/ledger', element: guard(['FINANCE'], <LedgerPage />), handle: { title: 'Refund ledger' } },
           { path: '/manager', element: guard(['MANAGER'], <LazyDashboard />), handle: { title: 'Returns overview' } },
         ],
       },

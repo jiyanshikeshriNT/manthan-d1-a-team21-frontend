@@ -8,7 +8,7 @@ const labels = () => items().map((li) => within(li).getAllByText(/./)[0].textCon
 
 describe('StatusTimeline: Refunded path', () => {
   it('shows all six steps as done with the refund message and no current step', () => {
-    render(<StatusTimeline status="REFUNDED" events={ev('REQUESTED', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'INSPECTED', 'REFUND_PROCESSING', 'REFUNDED')} />)
+    render(<StatusTimeline status="REFUNDED" events={ev('REQUESTED', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'INSPECTED', 'REFUND_IN_PROGRESS', 'REFUNDED')} />)
 
     expect(screen.getByRole('list', { name: 'Return progress' }).tagName).toBe('OL')
     expect(labels()).toEqual(['Requested', 'Approved', 'In transit', 'Received', 'Inspected', 'Refunded'])
@@ -52,22 +52,34 @@ describe('StatusTimeline: in-progress states', () => {
     expect(within(items()[4]).getByText('Upcoming')).toBeInTheDocument()
   })
 
-  it.each(['PENDING_FINANCE', 'REFUND_PROCESSING'])('maps %s to Inspected (current)', (status) => {
-    render(<StatusTimeline status={status} events={ev('REQUESTED', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'INSPECTED', status)} />)
+  it.each(['AWAITING_FINANCE', 'REFUND_IN_PROGRESS'])('maps %s to Inspected (current)', (status) => {
+    render(<StatusTimeline status={status} events={ev('REQUESTED', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'INSPECTED')} />)
 
     expect(items()[4]).toHaveAttribute('aria-current', 'step')
     expect(within(items()[4]).getByText('In progress')).toBeInTheDocument()
     expect(within(items()[5]).getByText('Upcoming')).toBeInTheDocument()
-    expect(screen.queryByText(/pending finance|refund processing/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/awaiting finance|refund processing/i)).not.toBeInTheDocument()
   })
 
-  it('shows REFUND_FAILED as a retrying Refunded step', () => {
-    render(<StatusTimeline status="REFUND_FAILED" events={ev('REQUESTED', 'APPROVED', 'IN_TRANSIT', 'RECEIVED', 'INSPECTED', 'REFUND_PROCESSING', 'REFUND_FAILED')} />)
+  it('shows PENDING_REVIEW as the Requested step with a review message', () => {
+    render(<StatusTimeline status="PENDING_REVIEW" events={ev('REQUESTED')} />)
 
-    const refunded = items()[5]
-    expect(within(items()[4]).getByText('Done')).toBeInTheDocument()
-    expect(refunded).toHaveAttribute('aria-current', 'step')
-    expect(within(refunded).getByText('Retrying')).toBeInTheDocument()
-    expect(within(refunded).getByText('We’re retrying your refund. No action needed.')).toBeInTheDocument()
+    const requested = items()[0]
+    expect(requested).toHaveAttribute('aria-current', 'step')
+    expect(within(requested).getByText('In progress')).toBeInTheDocument()
+    expect(within(requested).getByText(/being reviewed by our team/i)).toBeInTheDocument()
+    expect(screen.queryByText('Under review')).not.toBeInTheDocument()
+  })
+})
+
+describe('StatusTimeline: Cancelled path', () => {
+  it('ends with a Cancelled step after the steps reached', () => {
+    render(<StatusTimeline status="CANCELLED" events={ev('REQUESTED', 'APPROVED', 'CANCELLED')} />)
+
+    expect(labels()).toEqual(['Requested', 'Approved', 'Cancelled'])
+    const cancelled = items()[2]
+    expect(cancelled).toHaveAttribute('aria-current', 'step')
+    expect(within(cancelled).getAllByText('Cancelled')).toHaveLength(2) // label and state text
+    expect(within(cancelled).getByText('You cancelled this return.')).toBeInTheDocument()
   })
 })

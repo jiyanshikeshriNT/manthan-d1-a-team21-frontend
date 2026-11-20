@@ -3,24 +3,30 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderRoute } from '../test/renderRoute'
 import { axeViolations } from '../test/axe'
+import { FIX } from '../mocks/db'
 
 const T = { timeout: 4000 }
 
 // Every page, rendered through the real router and layouts, must have no axe violations.
+// Staff workspaces are single-role, matching the backend's /api/v1/{role} rules.
 describe('axe: every page', () => {
   it.each([
-    ['home', '/', null, () => screen.findByRole('heading', { level: 1, name: /return an item/i })],
-    ['return wizard', '/return/new', null, () => screen.findByRole('heading', { level: 1, name: /find your order/i })],
-    ['return status', '/return/RET-2026-04820', null, () => screen.findByText('Items in this return', {}, T)],
-    ['return status with label', '/return/RET-2026-04817', null, () => screen.findByText('Label number', {}, T)],
-    ['staff sign in', '/login', null, () => screen.findByRole('heading', { level: 1, name: /staff sign in/i })],
-    ['not found', '/no-such-page', null, () => screen.findByRole('heading', { name: /page not found/i })],
-    ['warehouse', '/warehouse', 'WAREHOUSE', () => screen.findByLabelText(/scan return label/i)],
-    ['finance queue', '/finance', 'FINANCE', () => screen.findByRole('table', {}, T)],
-    ['manager dashboard', '/manager', 'MANAGER', () => screen.findByRole('region', { name: /flagged customers table/i }, T)],
-    ['no-access page', '/manager', 'WAREHOUSE', () => screen.findByText(/don't have access/i)],
-  ])('%s has no violations', async (_name, path, role, ready) => {
-    renderRoute(path, { role })
+    ['home', '/', {}, () => screen.findByRole('heading', { level: 1, name: /return an item/i })],
+    ['return wizard', '/return/new', {}, () => screen.findByRole('heading', { level: 1, name: /find your order/i })],
+    ['return status (refunded)', `/return/${FIX.refunded}`, { customer: 'ORD-100198' }, () => screen.findByText('Items in this return', {}, T)],
+    ['return status (rejected)', `/return/${FIX.rejected}`, { customer: 'ORD-100198' }, () => screen.findByText('We couldn’t accept this return', {}, T)],
+    ['return status with label and actions', `/return/${FIX.approved}`, { customer: 'ORD-100245' }, () => screen.findByText('Label code', {}, T)],
+    ['return status, confirm the order (no session)', `/return/${FIX.approved}`, {}, () => screen.findByRole('heading', { level: 1, name: /track return/i }, T)],
+    ['staff sign in', '/login', {}, () => screen.findByRole('heading', { level: 1, name: /staff sign in/i })],
+    ['not found', '/no-such-page', {}, () => screen.findByRole('heading', { name: /page not found/i })],
+    ['warehouse', '/warehouse', { role: 'WAREHOUSE' }, () => screen.findByLabelText(/scan return label/i)],
+    ['finance queue', '/finance', { role: 'FINANCE' }, () => screen.findByRole('table', {}, T)],
+    ['finance ledger', '/finance/ledger', { role: 'FINANCE' }, () => screen.findByRole('table', {}, T)],
+    ['manager dashboard', '/manager', { role: 'MANAGER' }, () => screen.findByRole('region', { name: /flagged customers table/i }, T)],
+    ['no-access page', '/manager', { role: 'WAREHOUSE' }, () => screen.findByText(/don't have access/i)],
+    ['no-access page (manager on finance)', '/finance', { role: 'MANAGER' }, () => screen.findByText(/don't have access/i)],
+  ])('%s has no violations', async (_name, path, opts, ready) => {
+    renderRoute(path, opts)
     await ready()
     expect(await axeViolations()).toEqual([])
   })
@@ -28,7 +34,7 @@ describe('axe: every page', () => {
   it('warehouse inspection form has no violations', async () => {
     const user = userEvent.setup()
     renderRoute('/warehouse', { role: 'WAREHOUSE' })
-    await user.type(await screen.findByLabelText(/scan return label/i), 'RET-2026-04902{Enter}')
+    await user.type(await screen.findByLabelText(/scan return label/i), `${FIX.received}{Enter}`)
     await screen.findByRole('form', { name: /inspect return/i }, T)
     expect(await axeViolations()).toEqual([])
   })
@@ -36,7 +42,7 @@ describe('axe: every page', () => {
   it('finance review drawer has no violations', async () => {
     const user = userEvent.setup()
     renderRoute('/finance', { role: 'FINANCE' })
-    await user.click(await screen.findByRole('button', { name: /review return\s*RET-2026-04912/i }, T))
+    await user.click(await screen.findByRole('button', { name: new RegExp(`review return\\s*${FIX.awaitingFinance}`, 'i') }, T))
     await screen.findByRole('button', { name: 'Approve' }, T)
     expect(await axeViolations()).toEqual([])
   })

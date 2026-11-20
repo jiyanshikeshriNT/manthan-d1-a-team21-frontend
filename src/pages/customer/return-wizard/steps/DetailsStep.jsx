@@ -4,15 +4,18 @@ import { AlertCircle } from 'lucide-react'
 import { Select, Textarea } from '../../../../components/ui/Field'
 import Button from '../../../../components/ui/Button'
 import Alert from '../../../../components/ui/Alert'
-import { REFUND_METHODS, RETURN_REASONS } from '../../../../domain/returns'
+import { REASON_NEEDS_TEXT, REFUND_METHODS, RETURN_REASONS } from '../../../../domain/returns'
 import { cx, formatINR } from '../../../../lib/format'
 import { selectedLines, useWizard } from '../wizardState'
 import PhotoPicker from '../PhotoPicker'
+
+const noteKey = (id) => `${id}:note`
 
 function validate(state) {
   const errors = {}
   for (const l of selectedLines(state)) {
     if (!l.reason) errors[l.orderItemId] = 'Choose a reason for this item.'
+    else if (l.reason === REASON_NEEDS_TEXT && !l.reasonNote.trim()) errors[noteKey(l.orderItemId)] = 'Tell us why you’re returning this item.'
   }
   if (!state.refundMethod) errors.refundMethod = 'Choose how you’d like to be refunded.'
   return errors
@@ -103,11 +106,12 @@ export default function DetailsStep() {
               ))}
             </Select>
             <Textarea
-              label="Anything else we should know?"
-              optional
+              label={l.reason === REASON_NEEDS_TEXT ? 'Why are you returning it?' : 'Anything else we should know?'}
+              optional={l.reason !== REASON_NEEDS_TEXT}
               maxLength={500}
               value={l.reasonNote}
               onChange={(e) => update(l.orderItemId, { reasonNote: e.target.value })}
+              error={errors[noteKey(l.orderItemId)]}
               placeholder={l.reason === 'DAMAGED' ? 'For example: the stitching came apart after one wash' : undefined}
             />
             <PhotoPicker file={l.photo} itemName={l.productName} onChange={(photo) => update(l.orderItemId, { photo })} />

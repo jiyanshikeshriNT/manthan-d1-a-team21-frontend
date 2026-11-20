@@ -1,6 +1,6 @@
 import { useLocation, useParams } from 'react-router'
 import { FileQuestion, RefreshCw } from 'lucide-react'
-import { POLL_MS, useReturn, useReturnTimeline } from '../../api/hooks'
+import { POLL_MS, useReturn } from '../../api/hooks'
 import Card from '../../components/ui/Card'
 import Alert from '../../components/ui/Alert'
 import Spinner from '../../components/ui/Spinner'
@@ -15,13 +15,14 @@ import { formatDate, formatTime } from '../../lib/format'
 import LabelCard from './return-detail/LabelCard'
 import ItemsTable from './return-detail/ItemsTable'
 import StatusMessage from './return-detail/StatusMessage'
+import ReturnActions from './return-detail/ReturnActions'
+import VerifyOrderCard from './return-detail/VerifyOrderCard'
 
 export default function ReturnDetailPage() {
   const { returnId } = useParams()
   const { state } = useLocation()
   const ret = useReturn(returnId)
   const { data } = ret
-  const timeline = useReturnTimeline(returnId, data?.status)
 
   if (ret.isPending) {
     return (
@@ -31,19 +32,24 @@ export default function ReturnDetailPage() {
     )
   }
 
+  // The status page needs the order-scoped session (2 hours). Without it, confirm the order again.
+  if (ret.isError && ret.error.status === 401) {
+    return <VerifyOrderCard returnId={returnId} onVerified={() => ret.refetch()} />
+  }
+
   if (ret.isError && !data) {
     const notFound = ret.error.status === 404
     return (
       <EmptyState
         icon={FileQuestion}
         title={notFound ? 'We couldn’t find that return' : 'We couldn’t load this return'}
-        description={notFound ? 'Check the link in your confirmation email.' : 'Please try again in a moment.'}
-        action={<Button as="link" to="/">Go to home</Button>}
+        description={notFound ? 'Check the return number. It belongs to the order you looked up.' : 'Please try again in a moment.'}
+        action={notFound ? <Button as="link" to="/">Go to home</Button> : <Button onClick={() => ret.refetch()}>Try again</Button>}
       />
     )
   }
 
-  const active = buildTimeline(data.status).find((s) => s.message && s.state !== 'upcoming')
+  const active = buildTimeline(data.status, data.events).find((s) => s.message && s.state !== 'upcoming')
   const final = isFinal(data.status)
 
   return (
@@ -78,12 +84,15 @@ export default function ReturnDetailPage() {
 
       <Card aria-labelledby="progress-h" className="animate-fade-up" style={{ animationDelay: '120ms' }}>
         <h2 id="progress-h" className="mb-5 font-semibold">Progress</h2>
-        <StatusTimeline status={data.status} events={timeline.data?.events} />
+        <StatusTimeline status={data.status} events={data.events} />
       </Card>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_19rem]">
         <ItemsTable items={data.items} estimatedRefundPaise={data.estimatedRefundPaise} status={data.status} />
-        <LabelCard returnId={data.returnId} status={data.status} />
+        <div className="grid gap-6">
+          <LabelCard returnId={data.returnId} status={data.status} />
+          <ReturnActions ret={data} />
+        </div>
       </div>
 
       {!final && (

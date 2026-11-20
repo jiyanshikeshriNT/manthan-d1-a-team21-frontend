@@ -9,9 +9,13 @@ Returns and refunds portal for an online retailer. Customers request returns, wa
 Requires Node 20.19 or later.
 
 ```bash
+# 1. Backend (in ../system, JDK 17): H2 database + seed data on http://localhost:8080
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,seed"
+
+# 2. Frontend
 npm install
-cp .env.example .env.local   # VITE_USE_MOCKS=true runs without the backend
-npm run dev                  # http://localhost:5173
+cp .env.example .env.local   # optional; VITE_USE_MOCKS=true runs without the backend
+npm run dev                  # http://localhost:5173, /api is proxied to :8080
 ```
 
 | Command | What it does |
@@ -21,31 +25,14 @@ npm run dev                  # http://localhost:5173
 | `npm run lint` | oxlint |
 | `npm run build` | Production build. Set `VITE_API_BASE_URL` to the API origin |
 
-### Mock data (`VITE_USE_MOCKS=true`)
-- **Order with a mix of returnable items:** `RR-100245` / `priya.sharma@example.com`
-- **Order with nothing returnable:** `RR-100310` / `arjun.mehta@example.com`
-- **Return status pages, one per state:**
-  - `/return/RET-2026-04817`: in transit, with a label that expires in 2 days
-  - `/return/RET-2026-04820`: refunded, with a Grade C item
-  - `/return/RET-2026-04821`: rejected
-  - `/return/RET-2026-04822`: refund failed, retrying
-  - `/return/RET-2026-04823`: pending finance (shows as Inspected)
-  - `/return/RET-2026-04824`: live. Starts at Approved and moves one step every 20 seconds, so you can watch polling work. A return you create in the wizard behaves the same way.
-- **Staff logins:** `warehouse@returnright.test`, `finance@returnright.test`, `manager@returnright.test`. The password for all three is in `src/mocks/data.js`.
+### Walking through a return with the seeded backend
+- **Staff logins:** usernames `warehouse`, `finance`, `manager`; password `ReturnRight#2026` (`app.seed.staff-password`). Each role opens only its own workspace, as the API allows.
+- **Customer orders:** `ORD-100001` … `ORD-102000`, each with its customer's email (e.g. `ORD-101465` / `asha.menon.87@example.com`). Delivery dates spread over the last 60 days, so you will see open windows, closed windows, non-returnable categories and undelivered orders.
+- **Flow:** start a return in the wizard → on the status page print the label and press "I've shipped my parcel" → as `warehouse`, scan or paste the label code (or upload a photo of the QR) and inspect (`1/2/3` grade, `a/p/r` accept/partial/reject, `Ctrl+Enter` submit) → refunds up to ₹10,000 are paid at once; larger ones go to `finance` for approval → the customer's page shows Refunded.
+- **More paths:** a customer's 4th return request in 30 days waits for `manager` review; the manager dashboard can switch the mock payment gateway to a fault mode (e.g. "Down") so a refund ends "Outcome unknown" and finance can retry it once the gateway is back.
 
-### Warehouse and finance demo data
-Sign in with a mock staff login (the manager login opens both screens).
-- **Warehouse scan tokens:**
-  - `RET-2026-04901`: two items, one with 3 units for a Partial accept. The refund stays under ₹10,000, so the outcome is "Refund processing".
-  - `RET-2026-04902`: a ₹54,990 laptop. The outcome is "Sent to finance".
-  - `RET-2026-04903`: the first submit returns a stale-version conflict, so you can try "Reload return".
-- **Keys:** `1/2/3` grade A/B/C, `a/p/r` accept/partial/reject, `Ctrl+Enter` submit.
-- **Finance queue:**
-  - `RET-2026-04911`: the first approval fails at the gateway, then Retry succeeds.
-  - `RET-2026-04913`: approving shows the separation-of-duties message.
-  - `RET-2026-04914`: starts as a failed refund.
-
-Some embedded browsers block service workers. The app then shows a notice and calls the real API instead.
+### Mock mode (`VITE_USE_MOCKS=true`)
+MSW answers the same `/api/v1` contract in the browser, with the fixtures in `src/mocks/`. Some embedded browsers block service workers; the app then answers `/api` calls through the same handlers via `fetch`.
 
 ## Pages
 
@@ -53,11 +40,12 @@ Some embedded browsers block service workers. The app then shows a notice and ca
 |---|---|---|
 | `/` | Public | Landing page and return policy |
 | `/return/new` | Public | 4-step return wizard |
-| `/return/:returnId` | Public | Return status timeline |
+| `/return/:rma` | Customer session (asks for order number + email if missing) | Return status timeline, label, ship and cancel |
 | `/login` | Public | Staff sign in |
-| `/warehouse` | WAREHOUSE, MANAGER | Scan and keyboard inspection |
-| `/finance` | FINANCE, MANAGER | Approval queue and decisions |
-| `/manager` | MANAGER | KPIs, charts and flagged customers |
+| `/warehouse` | WAREHOUSE | Scan, receive and keyboard inspection |
+| `/finance` | FINANCE | Refund approvals and retries |
+| `/finance/ledger` | FINANCE | Double-entry refund ledger |
+| `/manager` | MANAGER | KPIs, charts, review queue, flagged customers, audit trail, gateway drill |
 
 ## Accessibility
 
@@ -87,5 +75,5 @@ Automated: `npm test` runs axe-core on every page, the inspection form and the f
 
 ## Docs
 - `CLAUDE.md`: team reference for architecture, design tokens, rules and conventions
-- `docs/api-contract.md`: API contract draft (mocks and hooks follow it)
+- `docs/api-contract.md`: how each screen uses the backend API (`../system/LLD.md` §4 is the source of truth)
 - `docs/returnright-wireframes.html`: low-fidelity wireframes

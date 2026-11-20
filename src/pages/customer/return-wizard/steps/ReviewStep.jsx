@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router'
 import { ArrowLeft, Camera, Info, Send } from 'lucide-react'
 import Button from '../../../../components/ui/Button'
 import Alert from '../../../../components/ui/Alert'
-import { toast } from '../../../../components/toast/toastStore'
-import { uploadReturnItemPhoto, useCreateReturn } from '../../../../api/hooks'
-import { reasonLabel, refundMethodLabel } from '../../../../domain/returns'
+import { useCreateReturn } from '../../../../api/hooks'
+import { ineligibleInfo, reasonLabel, refundMethodLabel } from '../../../../domain/returns'
 import { formatINR } from '../../../../lib/format'
 import { estimatedRefundPaise, selectedLines, useWizard } from '../wizardState'
 
@@ -18,57 +17,61 @@ export default function ReviewStep() {
 
   // Ref guard blocks a second click before React re-renders the disabled button.
   const inFlight = useRef(false)
-  const [phase, setPhase] = useState('idle') // idle | creating | uploading
   const [error, setError] = useState(null)
-  const busy = phase !== 'idle'
+  const busy = createReturn.isPending
+  const hasPhotos = lines.some((l) => l.photo)
 
   async function submit() {
     if (inFlight.current) return
     inFlight.current = true
     setError(null)
-    setPhase('creating')
     try {
+      // One multipart request: the return plus its photos. The same Idempotency-Key on a retry
+      // returns the return that was already created instead of a second one.
       const created = await createReturn.mutateAsync({
         idempotencyKey: state.idempotencyKey,
         body: {
-          orderId: state.order.orderId,
-          email: state.lookup.email.trim().toLowerCase(),
+          orderNumber: state.order.orderNumber,
           refundMethod: state.refundMethod,
           items: lines.map((l) => ({
-            orderItemId: l.orderItemId,
-            quantity: l.quantity,
-            reason: l.reason,
-            ...(l.reasonNote.trim() ? { reasonNote: l.reasonNote.trim() } : {}),
+            orderLineId: Number(l.orderItemId),
+            qty: l.quantity,
+            reasonCode: l.reason,
+            ...(l.reasonNote.trim() ? { reasonText: l.reasonNote.trim() } : {}),
           })),
         },
+        photos: Object.fromEntries(lines.filter((l) => l.photo).map((l) => [l.orderItemId, [l.photo]])),
       })
-
-      const withPhotos = lines.filter((l) => l.photo)
-      if (withPhotos.length) {
-        setPhase('uploading')
-        const results = await Promise.allSettled(
-          withPhotos.map((l) => {
-            const ri = created.items.find((i) => i.orderItemId === l.orderItemId)
-            return ri ? uploadReturnItemPhoto(created.returnId, ri.returnItemId, l.photo) : Promise.resolve()
-          }),
-        )
-        if (results.some((r) => r.status === 'rejected')) {
-          toast.info('Return created, but a photo didn’t upload', 'The warehouse will still inspect your item.')
-        }
-      }
       navigate(`/return/${encodeURIComponent(created.returnId)}`, { replace: true, state: { justCreated: true } })
     } catch (e) {
       inFlight.current = false
-      setPhase('idle')
       setError(e)
     }
   }
+
+  // 422 ITEM_NOT_RETURNABLE lists a reason per order line.
+  const refusals = error?.code === 'ITEM_NOT_RETURNABLE' ? (error.data?.items ?? []) : []
+  const nameOf = (orderLineId) => lines.find((l) => l.orderItemId === String(orderLineId))?.productName ?? `Item ${orderLineId}`
 
   return (
     <div className="grid gap-6">
       {error && (
         <Alert tone="danger" title="We couldn’t submit your return">
-          {error.status === 429 ? 'Too many attempts. Please wait a minute and try again.' : `${error.message} Your details are saved, so you can try again.`}
+          {error.status === 429
+            ? 'Too many attempts. Please wait a minute and try again.'
+            : error.status === 401
+              ? 'Your session has expired. Please look up your order again; your choices are kept.'
+              : `${error.message} ${refusals.length ? '' : 'Your details are saved, so you can try again.'}`}
+          {refusals.length > 0 && (
+            <ul className="mt-2 grid list-disc gap-1 pl-5">
+              {refusals.map((r) => (
+                <li key={r.orderLineId}><strong className="font-semibold">{nameOf(r.orderLineId)}:</strong> {r.message || ineligibleInfo(r.code).fallback}</li>
+              ))}
+            </ul>
+          )}
+          {error.status === 401 && (
+            <Button variant="secondary" className="mt-3" onClick={() => dispatch({ type: 'GO_TO', step: 0 })}>Look up order</Button>
+          )}
         </Alert>
       )}
 
@@ -121,7 +124,7 @@ export default function ReviewStep() {
           <ArrowLeft className="size-4" aria-hidden="true" /> Back
         </Button>
         <Button onClick={submit} loading={busy} size="lg">
-          {phase === 'creating' ? 'Submitting…' : phase === 'uploading' ? 'Uploading photos…' : (
+          {busy ? (hasPhotos ? 'Submitting and uploading photos…' : 'Submitting…') : (
             <>Submit return <Send className="size-4" aria-hidden="true" /></>
           )}
         </Button>

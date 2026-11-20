@@ -98,7 +98,7 @@ function ItemRow({ item, selection, dispatch }) {
 
 export default function SelectItemsStep() {
   const { state, dispatch } = useWizard()
-  const { data, isPending, isError, refetch } = useEligibility(state.order?.orderId)
+  const { data, isPending, isError, error, refetch } = useEligibility(state.order?.orderId)
   const count = Object.keys(state.selections).length
   const back = () => dispatch({ type: 'GO_TO', step: 0 })
 
@@ -111,12 +111,15 @@ export default function SelectItemsStep() {
   }
 
   if (isError) {
+    const expired = error?.status === 401
     return (
       <div className="grid gap-4">
-        <Alert tone="danger" title="We couldn’t load your items">Check your connection and try again.</Alert>
+        <Alert tone={expired ? 'warning' : 'danger'} title={expired ? 'Your session has expired' : 'We couldn’t load your items'}>
+          {expired ? 'For your security, please look up your order again.' : 'Check your connection and try again.'}
+        </Alert>
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={back}>Back</Button>
-          <Button onClick={() => refetch()}>Try again</Button>
+          <Button variant="secondary" onClick={back}>{expired ? 'Look up order' : 'Back'}</Button>
+          {!expired && <Button onClick={() => refetch()}>Try again</Button>}
         </div>
       </div>
     )
@@ -145,8 +148,8 @@ export default function SelectItemsStep() {
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-canvas px-4 py-3 text-sm">
         <span>
-          Order <span className="font-mono font-medium">{state.order.orderNumber}</span>
-          {state.order.deliveredAt && <span className="text-muted"> · delivered {formatDate(state.order.deliveredAt)}</span>}
+          Order <span className="font-mono font-medium">{data.orderNumber}</span>
+          {data.deliveredAt && <span className="text-muted"> · delivered {formatDate(data.deliveredAt)}</span>}
         </span>
         <span className="text-muted">
           {eligibleCount} of {items.length} items can be returned

@@ -8,27 +8,29 @@ import { Textarea } from '../../components/ui/Field'
 import { useFinanceDecision, useFinanceReturn, useRetryRefund } from '../../api/staff'
 import { refundMethodLabel } from '../../domain/returns'
 import { formatAge, formatINR } from '../../lib/format'
-import PhotoLightbox from '../warehouse/PhotoLightbox'
 import { GradeSummary, StatusCell } from './QueueTable'
 
-const newKey = () => globalThis.crypto?.randomUUID?.() ?? `fin-${Date.now()}-${Math.random().toString(16).slice(2)}`
-
 const DECISION_LABEL = (i) =>
-  i.decision === 'REJECT' ? 'Rejected' : i.decision === 'PARTIAL' ? `Partial: ${i.acceptedQty} of ${i.quantity}` : 'Accepted'
+  i.decision === 'REJECTED'
+    ? 'Rejected'
+    : i.acceptedQty != null && i.acceptedQty < i.quantity
+      ? `Partial: ${i.acceptedQty} of ${i.quantity}`
+      : 'Accepted'
 
 function errorMessage(e) {
-  if (e.code === 'SEPARATION_OF_DUTIES') {
-    return { title: 'You can’t decide on this return', text: 'To keep refunds independent, the person who inspected or previously handled a return can’t approve it. Ask another finance reviewer to take it.', reload: false }
-  }
-  if (e.code === 'STALE_VERSION' || e.code === 'ILLEGAL_TRANSITION') {
-    return { title: 'This return changed', text: 'It was updated by someone else, or it has already been decided. Reload it to see the latest details before you decide.', reload: true }
+  if (e.code === 'INVALID_TRANSITION' || e.code === 'CONCURRENT_MODIFICATION') {
+    return { title: 'This refund changed', text: `${e.message} Reload it to see the latest details before you decide.`, reload: true }
   }
   return { title: 'We couldn’t complete that', text: `${e.message} Nothing was changed. You can try again.`, reload: false }
 }
 
-/** Review a return and approve or reject it. A confirm step shows the amount before anything is sent. */
-export default function FinanceDrawer({ returnId, onClose }) {
-  const q = useFinanceReturn(returnId)
+/**
+ * Review a refund and approve or reject it, or retry a failed one. A confirm step shows the amount
+ * before anything is sent. The server makes double approvals a no-op and pays with a deterministic
+ * gateway key, so a refund can never be paid twice.
+ */
+export default function FinanceDrawer({ refundId, onClose }) {
+  const q = useFinanceReturn(refundId)
   const decide = useFinanceDecision()
   const retry = useRetryRefund()
   const [mode, setMode] = useState('review') // review | approve | reject
@@ -36,19 +38,17 @@ export default function FinanceDrawer({ returnId, onClose }) {
   const [noteError, setNoteError] = useState('')
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
-  const [photo, setPhoto] = useState(null)
   const [reloading, setReloading] = useState(false)
-  const attemptKey = useRef(newKey()) // one Idempotency-Key per confirmed attempt
   const inFlight = useRef(false)
   const pending = decide.isPending || retry.isPending
 
   if (q.isPending) {
-    return <div className="flex h-full items-center justify-center gap-3 p-8 text-muted"><Spinner label="" /> Loading return…</div>
+    return <div className="flex h-full items-center justify-center gap-3 p-8 text-muted"><Spinner label="" /> Loading refund…</div>
   }
   if (q.isError && !q.data) {
     return (
       <div className="grid gap-4 p-6">
-        <Alert tone="danger" title="We couldn’t load this return">{q.error.message}</Alert>
+        <Alert tone="danger" title="We couldn’t load this refund">{q.error.message}</Alert>
         <div className="flex gap-2"><Button onClick={() => q.refetch()}>Try again</Button><Button variant="secondary" onClick={onClose}>Close</Button></div>
       </div>
     )
@@ -57,22 +57,20 @@ export default function FinanceDrawer({ returnId, onClose }) {
   const d = q.data
   const status = result?.status ?? d.status
   const failureReason = result ? result.failureReason : d.failureReason
-  const canDecide = status === 'PENDING_FINANCE'
+  const canDecide = status === 'AWAITING_APPROVAL'
+  const canRetry = status === 'FAILED' || status === 'UNKNOWN'
 
-  function finish(fn) {
-    return {
-      onSuccess: (r) => {
-        inFlight.current = false
-        setResult(r)
-        setMode('review')
-        setError(null)
-        fn?.(r)
-      },
-      onError: (e) => {
-        inFlight.current = false
-        setError(e)
-      },
-    }
+  const callbacks = {
+    onSuccess: (r) => {
+      inFlight.current = false
+      setResult(r)
+      setMode('review')
+      setError(null)
+    },
+    onError: (e) => {
+      inFlight.current = false
+      setError(e)
+    },
   }
 
   function confirm(decision) {
@@ -83,14 +81,14 @@ export default function FinanceDrawer({ returnId, onClose }) {
     }
     inFlight.current = true
     setError(null)
-    decide.mutate({ returnId, version: d.version, decision, note: note.trim(), idempotencyKey: attemptKey.current }, finish())
+    decide.mutate({ refundId, decision, note: note.trim() }, callbacks)
   }
 
   function retryRefund() {
     if (inFlight.current) return
     inFlight.current = true
     setError(null)
-    retry.mutate({ returnId, idempotencyKey: newKey() }, finish())
+    retry.mutate({ refundId }, callbacks)
   }
 
   async function reload() {
@@ -99,7 +97,6 @@ export default function FinanceDrawer({ returnId, onClose }) {
     setResult(null)
     setError(null)
     setMode('review')
-    attemptKey.current = newKey()
     setReloading(false)
   }
 
@@ -110,34 +107,32 @@ export default function FinanceDrawer({ returnId, onClose }) {
       <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-line bg-surface px-5 py-4">
         <div className="grid gap-1">
           <h2 className="text-lg font-semibold">Return <span className="font-mono">{d.returnId}</span></h2>
-          <p className="text-sm text-muted">Order <span className="font-mono">{d.orderNumber}</span> · waiting {formatAge(d.submittedAt)}</p>
+          <p className="text-sm text-muted">Order <span className="font-mono">{d.orderNumber}</span> · refund #{d.refundId} · waiting {formatAge(d.submittedAt)}</p>
         </div>
         <Button variant="ghost" onClick={onClose} aria-label="Close" className="-mr-2"><X className="size-5" aria-hidden="true" /></Button>
       </header>
 
       <div className="grid flex-1 content-start gap-5 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{d.customerName}</span>
-          {d.flagged && <Badge tone="warning" icon={Flag}>Flagged</Badge>}
-          <StatusCell status={status === 'REFUNDED' || status === 'REJECTED' ? 'PENDING_FINANCE' : status} />
+          {d.flagged && <Badge tone="warning" icon={Flag}>Flagged customer</Badge>}
+          <StatusCell status={status} />
+          {d.attempts > 0 && <span className="text-sm text-muted tabular">{d.attempts} payment {d.attempts === 1 ? 'attempt' : 'attempts'}</span>}
         </div>
-        {d.flagged && d.flagReason && <p className="-mt-2 text-sm text-warning">{d.flagReason}. Check the history before approving.</p>}
+        {d.flagged && d.flagReason && <p className="-mt-2 text-sm text-warning">{d.flagReason.replace(/\.*$/, '.')} Check the history before approving.</p>}
 
         <ul className="grid divide-y divide-line rounded-xl border border-line" aria-label="Items">
           {d.items.map((i) => (
             <li key={i.returnItemId} className="flex items-start gap-3 p-3.5">
-              {i.photoUrl ? (
-                <button type="button" onClick={() => setPhoto({ url: i.photoUrl, title: i.productName })} aria-label={`View customer photo of ${i.productName}`} className="size-14 shrink-0 overflow-hidden rounded-lg border border-line">
-                  <img src={i.photoUrl} alt="" className="size-full object-cover" />
-                </button>
-              ) : (
-                <span className="grid size-14 shrink-0 place-items-center rounded-lg border border-dashed border-line-strong text-muted"><ImageIcon className="size-5" aria-hidden="true" /><span className="sr-only">No photo</span></span>
-              )}
+              <span className="grid size-14 shrink-0 place-items-center content-center rounded-lg border border-dashed border-line-strong text-center text-[11px] text-muted">
+                <ImageIcon className="size-5" aria-hidden="true" />
+                {i.photoCount > 0 ? <span className="tabular">{i.photoCount}</span> : <span className="sr-only">No photo</span>}
+              </span>
               <div className="grid min-w-0 flex-1 gap-1">
                 <p className="font-medium">{i.productName}</p>
                 <p className="flex flex-wrap items-center gap-2 text-sm text-muted">Qty {i.quantity} · {DECISION_LABEL(i)} {i.grade && <GradeSummary summary={{ [i.grade]: 1 }} />}</p>
+                {i.inspectionNote && <p className="text-sm text-muted">Warehouse note: “{i.inspectionNote}”</p>}
               </div>
-              <span className="font-semibold tabular">{formatINR(i.refundPaise)}</span>
+              <span className="font-semibold tabular">{formatINR(i.refundPaise ?? 0)}</span>
             </li>
           ))}
         </ul>
@@ -150,15 +145,21 @@ export default function FinanceDrawer({ returnId, onClose }) {
         {err && (
           <Alert tone="danger" title={err.title}>
             <p>{err.text}</p>
-            {err.reload && <Button variant="secondary" className="mt-3" onClick={reload} loading={reloading}>Reload return</Button>}
+            {err.reload && <Button variant="secondary" className="mt-3" onClick={reload} loading={reloading}>Reload refund</Button>}
           </Alert>
         )}
 
-        {status === 'REFUNDED' && <Alert tone="success" title={`Refund of ${formatINR(d.refundPaise)} sent`}>The customer has been notified.</Alert>}
-        {status === 'REJECTED' && <Alert tone="info" title="Return rejected">The customer has been told, with your note.</Alert>}
-        {status === 'REFUND_FAILED' && (
-          <Alert tone="warning" title="The refund failed">
-            <p>{(failureReason || 'The payment gateway did not complete the refund').replace(/\.*$/, '.')} Nothing was paid, so it is safe to retry.</p>
+        {status === 'SUCCEEDED' && <Alert tone="success" title={`Refund of ${formatINR(d.refundPaise)} sent`}>The return is now marked as refunded.</Alert>}
+        {(status === 'PENDING' || status === 'PROCESSING') && <Alert tone="info" title="Refund processing">The payment is in progress. This page updates when it settles.</Alert>}
+        {status === 'REJECTED' && <Alert tone="info" title="Refund rejected">The return is closed as rejected, with your note in its history.</Alert>}
+        {canRetry && (
+          <Alert tone="warning" title={status === 'UNKNOWN' ? 'The gateway didn’t confirm this refund' : 'The refund failed'}>
+            <p>
+              {failureReason ? `${failureReason.replace(/\.*$/, '.')} ` : ''}
+              {status === 'UNKNOWN'
+                ? 'It is checked again automatically. Retrying reuses the same payment key, so the customer can’t be paid twice.'
+                : 'Retrying reuses the same payment key, so the customer can’t be paid twice.'}
+            </p>
             <Button className="mt-3" onClick={retryRefund} loading={retry.isPending} disabled={pending}>
               <RotateCw className="size-4" aria-hidden="true" /> {retry.isPending ? 'Retrying…' : 'Retry refund'}
             </Button>
@@ -187,7 +188,7 @@ export default function FinanceDrawer({ returnId, onClose }) {
           <section aria-label="Confirm rejection" className="grid gap-3 rounded-xl border-2 border-danger bg-danger-soft p-4 animate-pop-in">
             <p className="font-semibold">Reject the {formatINR(d.refundPaise)} refund?</p>
             <Textarea
-              label="Note for the customer record"
+              label="Reason (kept in the return’s history)"
               value={note}
               onChange={(e) => { setNote(e.target.value); setNoteError('') }}
               error={noteError}
@@ -201,8 +202,6 @@ export default function FinanceDrawer({ returnId, onClose }) {
           </section>
         )}
       </div>
-
-      <PhotoLightbox photo={photo} onClose={() => setPhoto(null)} />
     </div>
   )
 }

@@ -4,20 +4,31 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { delay, http, HttpResponse } from 'msw'
 import { server } from '../../../mocks/server'
+import { problem } from '../../../mocks/handlers'
+import { signInStaff } from '../../../test/sessions'
 import InspectionForm from '../InspectionForm'
 
 const ret = {
-  returnId: 'RET-T1',
-  orderNumber: 'RR-1',
+  returnId: 'RMA-T1',
+  id: 'uuid-t1',
+  orderNumber: 'ORD-1',
   status: 'RECEIVED',
-  version: 7,
+  refundMethod: 'ORIGINAL_PAYMENT',
+  labelCode: null,
   items: [
-    { returnItemId: 'i1', productName: 'Cotton kurta', sku: 'K1', quantity: 1, unitPricePaise: 129900, reason: 'DAMAGED', photoUrl: null },
-    { returnItemId: 'i2', productName: 'Steel bottle', sku: 'B1', quantity: 3, unitPricePaise: 64900, reason: 'CHANGED_MIND', photoUrl: null },
+    { returnItemId: '11', itemId: 11, productName: 'Cotton kurta', sku: 'K1', quantity: 1, unitPricePaise: 129900, reason: 'DAMAGED', photoCount: 0, photoUrl: null },
+    { returnItemId: '12', itemId: 12, productName: 'Steel bottle', sku: 'B1', quantity: 3, unitPricePaise: 64900, reason: 'CHANGED_MIND', photoCount: 2, photoUrl: null },
   ],
 }
 
+/** WarehouseReturnView as the backend returns it after an inspection. */
+const view = (over = {}) => ({
+  returnId: 'uuid-t1', rma: 'RMA-T1', orderNumber: 'ORD-1', status: 'REFUND_IN_PROGRESS', refundMethod: 'ORIGINAL_PAYMENT',
+  totalRefundPaise: 194750, items: [], refund: { id: 9, status: 'PENDING' }, ...over,
+})
+
 function setup(props = {}) {
+  signInStaff('WAREHOUSE')
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   const onDone = vi.fn()
   const onReload = vi.fn()
@@ -30,10 +41,10 @@ function setup(props = {}) {
 }
 
 const ctrlEnter = '{Control>}{Enter}{/Control}'
-const capture = (calls, body = { returnId: 'RET-T1', status: 'REFUND_PROCESSING', version: 8, refundPaise: 194750, outcome: 'REFUND_PROCESSING' }) =>
+const capture = (calls, body = view()) =>
   server.use(
-    http.post('*/api/warehouse/returns/:id/inspect', async ({ request }) => {
-      calls.push(await request.json())
+    http.post('*/api/v1/warehouse/returns/:rma/inspection', async ({ request, params }) => {
+      calls.push({ rma: params.rma, body: await request.json() })
       await delay(150)
       return HttpResponse.json(body)
     }),
@@ -48,7 +59,7 @@ describe('InspectionForm: keyboard-driven inspection', () => {
     expect(screen.getAllByRole('radio', { name: /^A/ })[0]).toHaveFocus() // focus starts on item 1's first grade button
     await user.keyboard('3a') // grade C, accept
     expect(screen.getAllByRole('radio', { name: /^C/ })[0]).toBeChecked()
-    expect(screen.getByTestId('refund-i1')).toHaveTextContent('₹649.50') // 50%, round half up
+    expect(screen.getByTestId('refund-11')).toHaveTextContent('₹649.50') // 50%, round half up
 
     await user.tab() // decision group
     await user.tab() // item 2, grade group
@@ -56,20 +67,26 @@ describe('InspectionForm: keyboard-driven inspection', () => {
     const qty = await screen.findByLabelText(/accepted quantity/i)
     expect(qty).toHaveFocus()
     await user.keyboard('2')
-    expect(screen.getByTestId('refund-i2')).toHaveTextContent('₹1,298')
+    expect(screen.getByTestId('refund-12')).toHaveTextContent('₹1,298')
     expect(screen.getByTestId('refund-total')).toHaveTextContent('₹1,947.50')
 
     await user.keyboard(ctrlEnter)
     await waitFor(() => expect(onDone).toHaveBeenCalled())
+    // Partial is sent as ACCEPTED with acceptedQty; a full accept leaves acceptedQty out.
     expect(calls).toEqual([
       {
-        version: 7, // the version the agent loaded
-        items: [
-          { returnItemId: 'i1', grade: 'C', decision: 'ACCEPT' },
-          { returnItemId: 'i2', grade: 'A', decision: 'PARTIAL', acceptedQty: 2 },
-        ],
+        rma: 'RMA-T1',
+        body: {
+          items: [
+            { itemId: 11, grade: 'C', decision: 'ACCEPTED' },
+            { itemId: 12, grade: 'A', decision: 'ACCEPTED', acceptedQty: 2 },
+          ],
+        },
       },
     ])
+    expect(onDone).toHaveBeenCalledWith({
+      returnId: 'RMA-T1', status: 'REFUND_IN_PROGRESS', refundPaise: 194750, outcome: 'REFUND_IN_PROGRESS', refundStatus: 'PENDING',
+    })
   })
 
   it('shows the quantity box only for Partial and disables Partial for a single unit', async () => {
@@ -95,7 +112,30 @@ describe('InspectionForm: keyboard-driven inspection', () => {
 
     expect(await screen.findByText('Complete 2 items to continue')).toBeInTheDocument()
     expect(screen.getAllByText('Choose accept, partial or reject.')).toHaveLength(2)
+    expect(screen.getAllByText('Choose a grade.')).toHaveLength(2)
     expect(calls).toHaveLength(0)
+  })
+
+  it('needs a grade for a rejected item too, and sends it as REJECTED', async () => {
+    const calls = []
+    capture(calls, view({ status: 'REJECTED', totalRefundPaise: 0, refund: null }))
+    const { user, onDone } = setup()
+
+    await user.keyboard('r') // reject item 1 without a grade
+    await user.tab()
+    await user.tab()
+    await user.keyboard('2r') // item 2: grade B, reject
+    await user.keyboard(ctrlEnter)
+    expect(await screen.findByText('Complete 1 item to continue')).toBeInTheDocument()
+    expect(calls).toHaveLength(0)
+
+    await user.click(screen.getAllByRole('radio', { name: /^C/ })[0])
+    await user.keyboard(ctrlEnter)
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(calls[0].body.items).toEqual([
+      { itemId: 11, grade: 'C', decision: 'REJECTED' },
+      { itemId: 12, grade: 'B', decision: 'REJECTED' },
+    ])
   })
 })
 
@@ -134,12 +174,14 @@ describe('InspectionForm: conflicts', () => {
   }
 
   it.each([
-    ['STALE_VERSION', /changed this return|someone else changed/i],
-    ['ILLEGAL_TRANSITION', /can’t be inspected in its current state/i],
-  ])('shows a clear message and a Reload button for %s', async (code, text) => {
+    ['CONCURRENT_MODIFICATION', 409, /someone else changed this return/i],
+    ['INVALID_TRANSITION', 409, /can’t be inspected in its current state/i],
+  ])('shows a clear message and a Reload button for %s', async (code, _status, text) => {
     server.use(
-      http.post('*/api/warehouse/returns/:id/inspect', () => HttpResponse.json({ error: { code, message: 'Conflict.' } }, { status: 409 })),
-      http.get('*/api/warehouse/returns/:id', () => HttpResponse.json({ ...ret, version: 9 })),
+      http.post('*/api/v1/warehouse/returns/:rma/inspection', () => problem(code, 'Conflict.', { currentStatus: 'INSPECTED' })),
+      http.get('*/api/v1/warehouse/returns/:rma', () =>
+        HttpResponse.json({ ...view({ status: 'INSPECTED', refund: null }), items: [] }),
+      ),
     )
     const { user, onReload } = setup()
     await fillAndSubmit(user)
@@ -150,6 +192,6 @@ describe('InspectionForm: conflicts', () => {
     expect(screen.getByRole('button', { name: /submit inspection/i })).toBeEnabled()
 
     await user.click(screen.getByRole('button', { name: /reload return/i }))
-    await waitFor(() => expect(onReload).toHaveBeenCalledWith(expect.objectContaining({ version: 9 })))
+    await waitFor(() => expect(onReload).toHaveBeenCalledWith(expect.objectContaining({ returnId: 'RMA-T1', status: 'INSPECTED' })))
   })
 })

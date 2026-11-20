@@ -4,39 +4,64 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { delay, http, HttpResponse } from 'msw'
 import { server } from '../../../mocks/server'
+import { problem } from '../../../mocks/handlers'
+import { signInStaff } from '../../../test/sessions'
 import FinanceDrawer from '../FinanceDrawer'
 
+const refund = (over = {}) => ({
+  id: 77, returnId: 'uuid-77', rma: 'RMA-F1', amountPaise: 5499000, method: 'ORIGINAL_PAYMENT', status: 'AWAITING_APPROVAL',
+  attempts: 0, requiresApproval: true, approvedBy: null, approvedAt: null, gatewayTxnId: null, lastError: null,
+  nextAttemptAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), ...over,
+})
+
 const detail = (over = {}) => ({
-  returnId: 'RET-F1', orderNumber: 'RR-9', customerName: 'Vikram P.', flagged: true, flagReason: '4 returns in the last 30 days',
-  status: 'PENDING_FINANCE', version: 3, refundMethod: 'ORIGINAL', refundPaise: 5499000, submittedAt: new Date().toISOString(), failureReason: null,
-  items: [{ returnItemId: 'f1', productName: 'Laptop 14"', quantity: 1, grade: 'A', decision: 'ACCEPT', refundPaise: 5499000, photoUrl: null }],
-  ...over,
+  refund: refund(over),
+  returnId: 'uuid-77', rma: 'RMA-F1', orderNumber: 'ORD-9', returnStatus: 'AWAITING_FINANCE', flagged: true,
+  flagReason: 'Customer has 4 return requests in the last 30 days; manual review required', requestedAt: new Date().toISOString(),
+  items: [{
+    itemId: 1, orderLineId: 9, sku: 'ELE-LAP', productName: 'Laptop 14"', requestedQty: 1, unitPricePaise: 5499000, reasonCode: 'DEFECTIVE',
+    reasonText: null, photoCount: 2, conditionGrade: 'A', decision: 'ACCEPTED', acceptedQty: 1, refundPaise: 5499000, inspectionNote: null,
+  }],
 })
 
 function setup(data = detail()) {
-  server.use(http.get('*/api/finance/returns/:id', () => HttpResponse.json(data)))
+  signInStaff('FINANCE')
+  server.use(http.get('*/api/v1/finance/refunds/:id', () => HttpResponse.json(data)))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <FinanceDrawer returnId="RET-F1" onClose={() => {}} />
+      <FinanceDrawer refundId={77} onClose={() => {}} />
     </QueryClientProvider>,
   )
   return userEvent.setup()
 }
 
-const decisionHandler = (calls, respond) =>
+const actionHandler = (action, calls, respond) =>
   server.use(
-    http.post('*/api/finance/returns/:id/decision', async ({ request }) => {
-      calls.push({ body: await request.json(), key: request.headers.get('Idempotency-Key') })
+    http.post(`*/api/v1/finance/refunds/:id/${action}`, async ({ request, params }) => {
+      const text = await request.text()
+      calls.push({ id: params.id, body: text ? JSON.parse(text) : null, auth: request.headers.get('Authorization') })
       await delay(150)
       return respond()
     }),
   )
 
+describe('FinanceDrawer: review', () => {
+  it('shows the refund, the graded items and the flag reason', async () => {
+    setup()
+    expect(await screen.findByRole('heading', { name: /return rma-f1/i })).toBeInTheDocument()
+    expect(screen.getByText('Flagged customer')).toBeInTheDocument()
+    expect(screen.getByText(/customer has 4 return requests/i)).toBeInTheDocument()
+    expect(screen.getByText('Awaiting approval')).toBeInTheDocument()
+    expect(screen.getByText('Grade A × 1')).toBeInTheDocument()
+    expect(screen.getByTestId('drawer-total')).toHaveTextContent('₹54,990')
+  })
+})
+
 describe('FinanceDrawer: approve', () => {
   it('asks for confirmation with the amount before sending anything', async () => {
     const calls = []
-    decisionHandler(calls, () => HttpResponse.json({ returnId: 'RET-F1', status: 'REFUNDED', version: 4 }))
+    actionHandler('approve', calls, () => HttpResponse.json(refund({ status: 'SUCCEEDED', attempts: 1 })))
     const user = setup()
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }))
@@ -46,13 +71,13 @@ describe('FinanceDrawer: approve', () => {
     await user.click(screen.getByRole('button', { name: /confirm and pay ₹54,990/i }))
     expect(await screen.findByText('Refund of ₹54,990 sent')).toBeInTheDocument()
     expect(calls).toHaveLength(1)
-    expect(calls[0].body).toEqual({ version: 3, decision: 'APPROVE' })
-    expect(calls[0].key).toBeTruthy()
+    expect(calls[0]).toMatchObject({ id: '77', body: null })
+    expect(calls[0].auth).toMatch(/^Basic /)
   })
 
   it('disables every action while pending, so a double click sends one request', async () => {
     const calls = []
-    decisionHandler(calls, () => HttpResponse.json({ returnId: 'RET-F1', status: 'REFUNDED', version: 4 }))
+    actionHandler('approve', calls, () => HttpResponse.json(refund({ status: 'SUCCEEDED', attempts: 1 })))
     const user = setup()
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }))
@@ -68,34 +93,35 @@ describe('FinanceDrawer: approve', () => {
     expect(calls).toHaveLength(1)
   })
 
-  it('explains separation of duties on a 403 and lets the reviewer go back', async () => {
-    decisionHandler([], () => HttpResponse.json({ error: { code: 'SEPARATION_OF_DUTIES', message: 'no' } }, { status: 403 }))
+  it('explains a payment the gateway did not confirm and offers a retry', async () => {
+    actionHandler('approve', [], () => HttpResponse.json(refund({ status: 'UNKNOWN', attempts: 1, lastError: 'The payment gateway did not answer in time' })))
     const user = setup()
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }))
     await user.click(screen.getByRole('button', { name: /confirm and pay/i }))
 
-    expect(await screen.findByText('You can’t decide on this return')).toBeInTheDocument()
-    expect(screen.getByText(/ask another finance reviewer/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Back' })).toBeEnabled()
+    expect(await screen.findByText('The gateway didn’t confirm this refund')).toBeInTheDocument()
+    expect(screen.getByText(/can’t be paid twice/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /retry refund/i })).toBeEnabled()
   })
 
-  it('offers a reload on a stale version', async () => {
-    decisionHandler([], () => HttpResponse.json({ error: { code: 'STALE_VERSION', message: 'x' } }, { status: 409 }))
+  it('offers a reload when the refund changed meanwhile (409)', async () => {
+    actionHandler('approve', [], () => problem('INVALID_TRANSITION', 'This refund has already been rejected.', { currentStatus: 'REJECTED' }))
     const user = setup()
 
     await user.click(await screen.findByRole('button', { name: 'Approve' }))
     await user.click(screen.getByRole('button', { name: /confirm and pay/i }))
 
-    expect(await screen.findByText('This return changed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /reload return/i })).toBeInTheDocument()
+    expect(await screen.findByText('This refund changed')).toBeInTheDocument()
+    expect(screen.getByText(/already been rejected/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reload refund/i })).toBeInTheDocument()
   })
 })
 
 describe('FinanceDrawer: reject and refund failure', () => {
-  it('requires a note to reject and sends nothing without one', async () => {
+  it('requires a reason to reject and sends nothing without one', async () => {
     const calls = []
-    decisionHandler(calls, () => HttpResponse.json({ returnId: 'RET-F1', status: 'REJECTED', version: 4 }))
+    actionHandler('reject', calls, () => HttpResponse.json(refund({ status: 'REJECTED', lastError: 'Item was used' })))
     const user = setup()
 
     await user.click(await screen.findByRole('button', { name: 'Reject' }))
@@ -103,25 +129,25 @@ describe('FinanceDrawer: reject and refund failure', () => {
     expect(await screen.findByText('Add a note explaining why this refund is rejected.')).toBeInTheDocument()
     expect(calls).toHaveLength(0)
 
-    await user.type(screen.getByLabelText(/note for the customer record/i), 'Item was used')
+    await user.type(screen.getByLabelText(/reason/i), 'Item was used')
     await user.click(screen.getByRole('button', { name: /confirm rejection/i }))
-    expect(await screen.findByText('Return rejected')).toBeInTheDocument()
-    expect(calls[0].body).toEqual({ version: 3, decision: 'REJECT', note: 'Item was used' })
+    expect(await screen.findByText('Refund rejected')).toBeInTheDocument()
+    expect(calls[0].body).toEqual({ reason: 'Item was used' })
   })
 
   it('shows a failed refund with a Retry button, and the retry is single-shot while pending', async () => {
     let retries = 0
     server.use(
-      http.post('*/api/finance/returns/:id/retry-refund', async () => {
+      http.post('*/api/v1/finance/refunds/:id/retry', async () => {
         retries += 1
         await delay(150)
-        return HttpResponse.json({ returnId: 'RET-F1', status: 'REFUNDED', version: 5 })
+        return HttpResponse.json(refund({ status: 'SUCCEEDED', attempts: 6 }))
       }),
     )
-    const user = setup(detail({ status: 'REFUND_FAILED', failureReason: 'The payment gateway timed out' }))
+    const user = setup(detail({ status: 'FAILED', attempts: 5, lastError: 'Gateway declined the payment' }))
 
     expect(await screen.findByText('The refund failed')).toBeInTheDocument()
-    expect(screen.getByText(/payment gateway timed out/i)).toBeInTheDocument()
+    expect(screen.getByText(/gateway declined the payment/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
 
     const retry = screen.getByRole('button', { name: /retry refund/i })

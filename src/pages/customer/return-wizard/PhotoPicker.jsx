@@ -14,7 +14,7 @@ export default function PhotoPicker({ file, onChange, itemName }) {
     const f = e.target.files?.[0]
     e.target.value = '' // allow picking the same file again after removing it
     if (!f) return
-    if (!PHOTO_TYPES.includes(f.type)) return setError('Use a JPEG, PNG or WebP image.')
+    if (!PHOTO_TYPES.includes(f.type)) return setError('Use a JPEG or PNG image.')
     if (f.size > MAX_PHOTO_BYTES) return setError('This photo is larger than 5 MB. Choose a smaller one.')
     setError('')
     onChange(f)
@@ -50,7 +50,7 @@ export default function PhotoPicker({ file, onChange, itemName }) {
       >
         <ImagePlus className="size-5" aria-hidden="true" />
         Add a photo
-        <span className="font-normal text-muted">JPEG, PNG or WebP · up to 5 MB</span>
+        <span className="font-normal text-muted">JPEG or PNG · up to 5 MB</span>
         <input
           id={id}
           type="file"

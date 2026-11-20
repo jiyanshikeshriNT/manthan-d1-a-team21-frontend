@@ -3,7 +3,7 @@ import { Send } from 'lucide-react'
 import Alert from '../../components/ui/Alert'
 import Button from '../../components/ui/Button'
 import Kbd from '../../components/ui/Kbd'
-import { fetchWarehouseReturn, useInspect } from '../../api/staff'
+import { fetchWarehouseReturn, toInspectionItem, useInspect } from '../../api/staff'
 import { FINANCE_APPROVAL_THRESHOLD_INR, FINANCE_APPROVAL_THRESHOLD_PAISE } from '../../domain/returnStatus'
 import { formatINR } from '../../lib/format'
 import { refundTotal } from '../../lib/refund'
@@ -11,9 +11,9 @@ import ItemInspection from './ItemInspection'
 import PhotoLightbox from './PhotoLightbox'
 
 const CONFLICT = {
-  STALE_VERSION:
+  CONCURRENT_MODIFICATION:
     'Someone else changed this return while you were inspecting it. Reload it to see the latest details, then inspect it again.',
-  ILLEGAL_TRANSITION:
+  INVALID_TRANSITION:
     'This return can’t be inspected in its current state, for example because it was already inspected. Reload it to see where it stands.',
 }
 
@@ -26,7 +26,7 @@ function validate(items, lines) {
     const l = lines[item.returnItemId]
     const e = {}
     if (!l.decision) e.decision = 'Choose accept, partial or reject.'
-    if (l.decision && l.decision !== 'REJECT' && !l.grade) e.grade = 'Choose a grade.'
+    if (!l.grade) e.grade = 'Choose a grade.' // the record needs the condition, even for a rejected item
     if (l.decision === 'PARTIAL') {
       const n = Number(l.acceptedQty)
       if (!Number.isInteger(n) || n < 1 || n > item.quantity - 1) e.acceptedQty = `Enter a whole number from 1 to ${item.quantity - 1}.`
@@ -80,16 +80,7 @@ export default function InspectionForm({ ret, onDone, onReload }) {
     inspect.mutate(
       {
         returnId: ret.returnId,
-        version: ret.version,
-        items: ret.items.map((i) => {
-          const l = lines[i.returnItemId]
-          return {
-            returnItemId: i.returnItemId,
-            grade: l.grade || null,
-            decision: l.decision,
-            ...(l.decision === 'PARTIAL' && { acceptedQty: Number(l.acceptedQty) }),
-          }
-        }),
+        items: ret.items.map((i) => toInspectionItem(i, lines[i.returnItemId])),
       },
       {
         onSuccess: onDone,
@@ -128,7 +119,7 @@ export default function InspectionForm({ ret, onDone, onReload }) {
   async function reload() {
     setReloading(true)
     try {
-      onReload(await fetchWarehouseReturn(ret.returnId))
+      onReload(await fetchWarehouseReturn(ret.returnId, ret.labelCode))
     } catch (e) {
       setError(e)
       setReloading(false)
@@ -167,7 +158,7 @@ export default function InspectionForm({ ret, onDone, onReload }) {
       </p>
 
       {conflict && (
-        <Alert tone="danger" title={error.code === 'STALE_VERSION' ? 'This return changed' : 'This return can’t be inspected now'}>
+        <Alert tone="danger" title={error.code === 'CONCURRENT_MODIFICATION' ? 'This return changed' : 'This return can’t be inspected now'}>
           <p>{conflict}</p>
           <Button variant="secondary" className="mt-3" onClick={reload} loading={reloading}>Reload return</Button>
         </Alert>

@@ -5,7 +5,7 @@ import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import { Input } from '../components/ui/Field'
-import { useLogin } from '../api/hooks'
+import { useLogin } from '../api/staff'
 import { ROLE_HOME, setSession } from '../auth/session'
 import { useSession } from '../auth/useSession'
 
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const login = useLogin()
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm] = useState({ username: '', password: '' })
   const [errors, setErrors] = useState({})
 
   if (session) return <Navigate to={safeNext(params.get('next')) ?? ROLE_HOME[session.role]} replace />
@@ -25,16 +25,16 @@ export default function LoginPage() {
   function submit(e) {
     e.preventDefault()
     const next = {}
-    if (!form.email.trim()) next.email = 'Enter your work email.'
+    if (!form.username.trim()) next.username = 'Enter your username.'
     if (!form.password) next.password = 'Enter your password.'
     setErrors(next)
     if (Object.keys(next).length || login.isPending) return
 
     login.mutate(
-      { email: form.email.trim(), password: form.password },
+      { username: form.username.trim(), password: form.password },
       {
-        onSuccess: ({ token, role }) => {
-          setSession({ token, role })
+        onSuccess: ({ token, username, role }) => {
+          setSession({ token, username, role })
           navigate(safeNext(params.get('next')) ?? ROLE_HOME[role], { replace: true })
         },
       },
@@ -58,17 +58,20 @@ export default function LoginPage() {
               {failed.status === 429
                 ? 'Too many attempts. Please wait a minute and try again.'
                 : failed.status === 401 || failed.status === 400
-                  ? 'The email or password is incorrect.'
-                  : failed.message}
+                  ? 'The username or password is incorrect.'
+                  : failed.status === 403
+                    ? 'This account can’t use the staff workspace.'
+                    : failed.message}
             </Alert>
           )}
           <Input
-            label="Work email"
-            type="email"
+            label="Username"
             autoComplete="username"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            error={errors.email}
+            autoCapitalize="none"
+            spellCheck={false}
+            value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
+            error={errors.username}
           />
           <Input
             label="Password"

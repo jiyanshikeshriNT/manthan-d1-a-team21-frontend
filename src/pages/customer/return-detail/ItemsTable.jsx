@@ -41,7 +41,9 @@ export default function ItemsTable({ items, estimatedRefundPaise, status }) {
             {items.map((i) => {
               const st = ITEM_STATUS[i.status] ?? ITEM_STATUS.AWAITING_INSPECTION
               const gr = i.grade ? GRADE[i.grade] : null
-              const full = i.unitPricePaise * i.quantity
+              const accepted = i.acceptedQty ?? i.quantity
+              const full = i.unitPricePaise * accepted
+              const partial = i.status === 'ACCEPTED' && accepted < i.quantity
               return (
                 <tr key={i.returnItemId} className="align-top">
                   <th scope="row" className="px-3 py-3.5 font-medium sm:px-6">
@@ -50,7 +52,7 @@ export default function ItemsTable({ items, estimatedRefundPaise, status }) {
                   </th>
                   <td className="px-3 py-3.5">
                     <div className="grid justify-items-start gap-1.5">
-                      <Badge tone={st.tone} icon={st.icon}>{st.text}</Badge>
+                      <Badge tone={st.tone} icon={st.icon}>{partial ? `${accepted} of ${i.quantity} accepted` : st.text}</Badge>
                       {gr ? <Badge tone={gr.tone} icon={gr.icon}>{gr.text}</Badge> : <span className="text-xs text-muted">Not graded</span>}
                     </div>
                   </td>

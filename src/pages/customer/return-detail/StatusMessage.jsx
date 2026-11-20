@@ -2,20 +2,28 @@ import Alert from '../../../components/ui/Alert'
 import { refundMethodLabel } from '../../../domain/returns'
 import { formatINR } from '../../../lib/format'
 
-/** Friendly banner for the states that need explaining: rejected, refund retrying, refunded. */
+/** Friendly banner for the states that need explaining: under review, rejected, cancelled, refunded. */
 export default function StatusMessage({ data }) {
   const base = 'animate-fade-up'
-  if (data.status === 'REJECTED') {
+  if (data.status === 'PENDING_REVIEW') {
     return (
-      <Alert tone="danger" title="We couldn’t accept this return" className={base}>
-        {data.rejectionReason || 'Our team couldn’t accept this return.'} If you have questions, contact support and quote your return number.
+      <Alert tone="info" title="Your return is being reviewed" className={base}>
+        Because there have been several returns on your account recently, our team checks this one before it’s approved. No action needed.
       </Alert>
     )
   }
-  if (data.status === 'REFUND_FAILED') {
+  if (data.status === 'REJECTED') {
     return (
-      <Alert tone="warning" title="We’re retrying your refund" className={base}>
-        No action needed. We’ll keep trying and update this page as soon as it goes through.
+      <Alert tone="danger" title="We couldn’t accept this return" className={base}>
+        {data.closingNote ? `${data.closingNote.replace(/\.*$/, '.')} ` : 'Our team couldn’t accept this return. '}
+        If you have questions, contact support and quote your return number.
+      </Alert>
+    )
+  }
+  if (data.status === 'CANCELLED') {
+    return (
+      <Alert tone="info" title="Return cancelled" className={base}>
+        This return was cancelled, so nothing will be refunded. You can start a new one while the return window is open.
       </Alert>
     )
   }
