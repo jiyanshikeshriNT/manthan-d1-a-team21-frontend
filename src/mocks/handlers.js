@@ -2,6 +2,7 @@ import { delay, http, HttpResponse } from 'msw'
 import { ORDERS, STAFF_USERS } from './data'
 import { RETURNS, currentStatus, toDetail, toEvents, toLabel } from './returnsData'
 import { STAFF_RETURNS, applyInspection, financeView, queueRow, refundTotalOf, warehouseView } from './staffData'
+import { FLAGGED, METRICS } from './managerData'
 
 const err = (status, code, message) => HttpResponse.json({ error: { code, message } }, { status })
 
@@ -127,6 +128,17 @@ export const handlers = [
     const rec = find(params.returnId)
     if (!rec) return err(404, 'RETURN_NOT_FOUND', 'Return not found.')
     return HttpResponse.json(toDetail(rec))
+  }),
+
+  // ---- manager ----
+  http.get('/api/manager/metrics', async () => {
+    await delay(700)
+    return HttpResponse.json(METRICS)
+  }),
+
+  http.get('/api/manager/flagged', async () => {
+    await delay(500)
+    return HttpResponse.json({ customers: FLAGGED })
   }),
 
   // ---- warehouse ----

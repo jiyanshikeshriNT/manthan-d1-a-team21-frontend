@@ -56,7 +56,7 @@ export default function StaffLayout() {
           </div>
         </div>
         {items.length > 1 && (
-          <nav aria-label="Workspace" className="flex gap-1 overflow-x-auto border-t border-line px-4 md:hidden">
+          <nav aria-label="Workspace sections" className="flex gap-1 overflow-x-auto border-t border-line px-4 md:hidden">
             {items.map((n) => (
               <NavLink
                 key={n.to}
@@ -71,7 +71,7 @@ export default function StaffLayout() {
           </nav>
         )}
       </header>
-      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 outline-none px-4 py-6 sm:px-6">
         <Outlet />
       </main>
     </div>

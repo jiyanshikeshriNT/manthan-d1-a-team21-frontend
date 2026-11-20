@@ -26,6 +26,20 @@ export function formatAge(iso) {
   return `${Math.floor(h / 24)}d ${h % 24}h`
 }
 
+/** Hours as "2 d 4 h", "5 h" or "45 min". */
+export function formatDuration(hours) {
+  if (!Number.isFinite(hours)) return '—'
+  if (hours < 1) return `${Math.round(hours * 60)} min`
+  const total = Math.round(hours)
+  const d = Math.floor(total / 24)
+  const h = total % 24
+  return d ? `${d} d ${h} h` : `${h} h`
+}
+
+/** Fraction as a percentage: 0.1236 -> "12.4%". */
+export const formatPercent = (fraction, digits = 1) =>
+  Number.isFinite(fraction) ? `${(fraction * 100).toFixed(digits)}%` : '—'
+
 /** Whole days from now until `iso` (negative once passed). */
 export const daysUntil = (iso) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
 

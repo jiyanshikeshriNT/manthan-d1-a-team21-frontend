@@ -27,7 +27,7 @@ export default function ItemsTable({ items, estimatedRefundPaise, status }) {
   return (
     <Card padded={false} className="animate-fade-up overflow-hidden" style={{ animationDelay: '250ms' }} aria-labelledby="items-h">
       <h2 id="items-h" className="px-5 pt-5 pb-3 font-semibold sm:px-6">Items in this return</h2>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="region" aria-label="Returned items table" tabIndex={0}>
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Status, grade and refund for each returned item</caption>
           <thead className="border-y border-line bg-canvas text-xs tracking-wide text-muted uppercase">

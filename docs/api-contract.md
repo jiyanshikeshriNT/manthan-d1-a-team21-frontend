@@ -97,6 +97,17 @@ Every write carries the `version` the user saw. If the return changed since, the
 - Header: `Idempotency-Key`. Only valid while the status is `REFUND_FAILED`.
 - 200: `{ returnId, status, version, failureReason }`. 409 `ILLEGAL_TRANSITION` otherwise.
 
+## Manager (role MANAGER)
+`GET /api/manager/metrics`
+- 200: `{ periodDays, avgCycleTimeHours, returnRateByCategory, topReasons }`
+- `returnRateByCategory[]`: `{ category, returnable, returns, orders, returnRate }`. `returnRate` is a fraction (`0.189` means 18.9%).
+- `topReasons[]`: `{ reason, count }`, where `reason` uses the return reason codes.
+- `avgCycleTimeHours` runs from request to refund, and is `null` when nothing was refunded in the period.
+- The overall return rate is calculated by the UI as the sum of `returns` divided by the sum of `orders`.
+
+`GET /api/manager/flagged`
+- 200: `{ customers: [{ customerId, customerName, returnCount30d, lastReturnAt }] }`. Lists customers with more than 3 returns in the last 30 days.
+
 ## Open questions for the backend
 - Should `GET /api/returns/{id}` require proof of ownership (email or a signed token in the link)?
 - Is a photo per item right, or one photo per return?

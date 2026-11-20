@@ -37,7 +37,7 @@ export default function Segmented({ name, legend, value, onChange, options, erro
               />
               <span className="text-lg leading-6 font-semibold">{o.label}</span>
               {o.sub && <span className="text-xs text-muted">{o.sub}</span>}
-              {o.key && <span aria-hidden="true" className="absolute top-1 right-1"><Kbd>{o.key}</Kbd></span>}
+              {o.key && <span aria-hidden="true" className="absolute top-1 right-1 hidden lg:block"><Kbd>{o.key}</Kbd></span>}
               {checked && <span aria-hidden="true" className="absolute bottom-1 left-1.5 text-xs font-bold text-primary">✓</span>}
             </label>
           )

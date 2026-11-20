@@ -37,6 +37,11 @@ This file is the shared team reference. It is checked in. Personal preferences d
   - State lives in one `useReducer` (`wizardState.js`), so data survives Back.
   - Steps are in `steps/`.
   - Tests are in `__tests__/`.
+- `src/layouts/RootLayout.jsx` wraps every route. It sets `document.title` from `handle.title` on each route, moves focus to the new page's `<h1>` after navigation and announces it, and renders the skip link. Every `<main id="main">` has `tabIndex={-1}`.
+- `src/pages/manager/`: dashboard.
+  - `KpiCard`, `Panel` (loading skeleton, error with retry, empty state), `BarChartPanel`, `FlaggedTable` (sortable, `aria-sort`).
+  - `BarChartPanel` is a Recharts single-series horizontal bar chart. It has one hue (`text-chart-N` plus `fill="currentColor"`), direct value labels in ink, a tooltip, a `role="img"` summary in `aria-label`, and a visually hidden data table that "View as table" reveals.
+  - Hooks are in `src/api/manager.js`.
 - `src/pages/warehouse/`: keyboard-first inspection.
   - `ScanBox` takes focus on load and after each finished return.
   - `InspectionForm` moves focus to the first grade button after a scan, then reads keys for the focused item row: `1/2/3` grade, `a/p/r` decision, `Ctrl+Enter` submit.
@@ -71,6 +76,10 @@ This file is the shared team reference. It is checked in. Personal preferences d
 - Every submit button uses `loading`/`disabled` plus a ref guard against double submits. Create-type POSTs send an `Idempotency-Key`.
 - Form errors go through `Field`, so they are tied to inputs with `aria-describedby`/`aria-invalid`.
 - The order lookup shows one generic failure message, never a hint about which field is wrong. A 429 has its own message.
+- **Accessibility tests:** `src/__tests__/a11y.test.jsx` runs axe-core on every route through the real router (`renderRoute()` in `src/test/renderRoute.jsx`). A new page or state must be added there and must pass.
+  - `color-contrast` is off in jsdom; check contrast in the browser.
+  - Before merging UI changes, also run axe in the browser (README checklist) and check layouts at 375, 768 and 1280px.
+- **Charts:** one series means one hue and no legend; labels go directly on the marks in ink. Every chart needs a `role="img"` summary and a table alternative. Use `chart-*` tokens only, and never `chart-2` for text.
 - Tests: Vitest + Testing Library + the MSW node server (`src/test/setup.js`). Render wizard steps with `renderStep()` from `src/test/renderWithProviders.jsx`.
 
 ## Return state machine (must match the backend)

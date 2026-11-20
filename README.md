@@ -57,7 +57,33 @@ Some embedded browsers block service workers. The app then shows a notice and ca
 | `/login` | Public | Staff sign in |
 | `/warehouse` | WAREHOUSE, MANAGER | Scan and keyboard inspection |
 | `/finance` | FINANCE, MANAGER | Approval queue and decisions |
-| `/manager` | MANAGER | Dashboard (coming next) |
+| `/manager` | MANAGER | KPIs, charts and flagged customers |
+
+## Accessibility
+
+Automated: `npm test` runs axe-core on every page, the inspection form and the finance drawer, and checks that focus moves on route changes. jsdom can't check colour contrast, so do the browser checks below as well.
+
+### Manual checklist (run before every release)
+- [ ] **Browser axe:** run the axe DevTools extension on each page, including colour contrast. Expect 0 violations. Cover every customer page, `/login`, `/warehouse` with a return loaded, `/finance` with the drawer open, and `/manager`.
+- [ ] **Keyboard only:** unplug the mouse.
+  - Tab through each page. Every control is reachable, the focus ring is always visible, and the order follows the layout.
+  - The first Tab on any page shows "Skip to main content".
+- [ ] **Route changes:** after following a link, focus lands on the new page's heading and the tab title changes.
+- [ ] **Wizard:** Back and Next keep the data. Errors are announced and linked to their fields. The current step is announced.
+- [ ] **Warehouse:**
+  - Scan, then `1/2/3`, `a/p/r` and `Ctrl+Enter` complete an inspection with no mouse.
+  - Focus returns to the scan box afterwards.
+  - The photo lightbox closes with Esc and returns focus.
+- [ ] **Finance:** the drawer traps focus, Esc closes it, and focus returns to the row button. Buttons stay disabled while a request runs.
+- [ ] **Screen reader (NVDA + Firefox or VoiceOver + Safari):**
+  - Each chart reads its summary, and the data table is reachable.
+  - Status badges read as text.
+  - The timeline reads the current step.
+  - Polling updates are announced politely.
+- [ ] **Zoom and reflow:** at 200% browser zoom and at 320px width nothing is cut off. Only tables scroll sideways, inside their own box.
+- [ ] **Layouts:** check 375px, 768px and 1280px for every page.
+- [ ] **Reduced motion:** with "reduce motion" on in the OS, nothing animates and charts draw immediately.
+- [ ] **Colour:** with a colour-blindness simulator (Chrome DevTools > Rendering), every status still reads from its icon and text.
 
 ## Docs
 - `CLAUDE.md`: team reference for architecture, design tokens, rules and conventions
