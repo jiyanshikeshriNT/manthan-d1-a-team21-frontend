@@ -63,3 +63,5 @@ export function toCustomerStep(status) {
 }
 
 export const FINANCE_APPROVAL_THRESHOLD_INR = 10000
+// Refunds strictly above this need finance approval (₹10,000 in paise).
+export const FINANCE_APPROVAL_THRESHOLD_PAISE = FINANCE_APPROVAL_THRESHOLD_INR * 100

@@ -59,6 +59,44 @@ The MSW mocks (`src/mocks/handlers.js`) and the hooks (`src/api/hooks.js`) follo
 - 200: `{ labelNumber, qrPngBase64, expiresAt }`. `qrPngBase64` is the PNG without the `data:` prefix.
 - The page asks for it only while the status is `APPROVED` or `IN_TRANSIT`.
 
+## Warehouse (roles WAREHOUSE, MANAGER)
+Every write carries the `version` the user saw. If the return changed since, the server answers `409 STALE_VERSION`.
+
+`POST /api/warehouse/scan`
+- Body: `{ token }`. The token is what the label's QR code contains (the return ID in the mocks).
+- 200: `{ returnId, orderNumber, status, version, items: [{ returnItemId, productName, sku, quantity, unitPricePaise, reason, reasonNote, photoUrl }] }`
+- Scanning moves an `IN_TRANSIT` return to `RECEIVED`. `photoUrl` is `null` when the customer sent none.
+- 404 `RETURN_NOT_FOUND`. 409 `ILLEGAL_TRANSITION` if the return was already inspected.
+
+`GET /api/warehouse/returns/{returnId}`
+- Same body as the scan. Used by "Reload return" after a conflict.
+
+`POST /api/warehouse/returns/{returnId}/inspect`
+- Body: `{ version, items: [{ returnItemId, grade: A|B|C|null, decision: ACCEPT|PARTIAL|REJECT, acceptedQty? }] }`
+- `acceptedQty` is sent only for `PARTIAL`, from 1 to quantity − 1. `grade` is `null` only when rejecting.
+- Refund per item: A and B 100%, C 50%, reject 0, integer paise, round half up. The server recalculates it; the UI preview must match.
+- 200: `{ returnId, status, version, refundPaise, outcome }`. `outcome` is `PENDING_FINANCE` (total above ₹10,000), `REFUND_PROCESSING` or `REJECTED` (total is 0).
+- 409 `STALE_VERSION` or `ILLEGAL_TRANSITION`.
+
+## Finance (roles FINANCE, MANAGER)
+`GET /api/finance/queue`
+- 200: `{ items: [{ returnId, orderNumber, customerName, flagged, status, refundPaise, gradeSummary: { A, B, C }, submittedAt }] }`
+- `status` is `PENDING_FINANCE` or `REFUND_FAILED`. `flagged` is staff-only information.
+
+`GET /api/finance/returns/{returnId}`
+- 200: the queue row plus `{ version, flagReason, refundMethod, failureReason, items: [{ returnItemId, productName, quantity, grade, decision, acceptedQty, refundPaise, photoUrl }] }`
+
+`POST /api/finance/returns/{returnId}/decision`
+- Headers: `Idempotency-Key` (one per confirmed attempt)
+- Body: `{ version, decision: APPROVE|REJECT, note? }`. `note` is required for `REJECT` (400 `NOTE_REQUIRED`).
+- 200: `{ returnId, status, version, failureReason }`, where `status` is `REFUNDED`, `REJECTED` or `REFUND_FAILED`
+- 403 `SEPARATION_OF_DUTIES`: the user may not decide on a return they handled earlier.
+- 409 `STALE_VERSION` or `ILLEGAL_TRANSITION`
+
+`POST /api/finance/returns/{returnId}/retry-refund`
+- Header: `Idempotency-Key`. Only valid while the status is `REFUND_FAILED`.
+- 200: `{ returnId, status, version, failureReason }`. 409 `ILLEGAL_TRANSITION` otherwise.
+
 ## Open questions for the backend
 - Should `GET /api/returns/{id}` require proof of ownership (email or a signed token in the link)?
 - Is a photo per item right, or one photo per return?
