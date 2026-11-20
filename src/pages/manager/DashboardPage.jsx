@@ -1,18 +1,11 @@
-import PagePlaceholder from '../../components/PagePlaceholder'
+import { BarChart3 } from 'lucide-react'
+import EmptyState from '../../components/ui/EmptyState'
 
 export default function DashboardPage() {
   return (
-    <div className="stack">
-      <h1>Operations dashboard</h1>
-      <PagePlaceholder
-        title="To build"
-        items={[
-          'KPIs: return rate, average cycle time, refunded amount, flagged customers',
-          'Return rate by category (accessible colours, values on bars)',
-          'Top return reasons',
-          'Flagged customers (more than 3 returns in 30 days)',
-        ]}
-      />
+    <div className="grid gap-6">
+      <h1 className="text-2xl font-semibold">Operations dashboard</h1>
+      <EmptyState icon={BarChart3} title="Coming next" description="Return rates, top reasons, cycle time and flagged customers. This screen is built in a later step." />
     </div>
   )
 }

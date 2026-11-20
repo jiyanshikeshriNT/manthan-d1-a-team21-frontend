@@ -1,29 +1,54 @@
 # ReturnRight frontend
 
 Retail returns and refunds portal (Track A): customer returns, warehouse grading, finance refunds, manager dashboard.
-React 19 + Vite 8 + React Router 8 (imports from `react-router`). Package manager: npm.
+React 19 (JavaScript + JSDoc types) · Vite 8 · Tailwind CSS 4 · React Router 8 (imports from `react-router`) · TanStack Query 5 · MSW 3 · Vitest 5 + Testing Library. Package manager: npm.
+Backend: Spring Boot on http://localhost:8080. API contract: `docs/api-contract.md` (a frontend draft until the backend confirms it).
 Wireframes: `docs/returnright-wireframes.html` (layout reference only; its colours are outdated, the tokens below win).
 
 This file is the shared team reference. It is checked in. Personal preferences do not go here (see "Local preferences").
 
 ## Commands
 - `npm install`: install dependencies (use npm only; do not commit yarn or pnpm lockfiles)
-- `npm run dev`: dev server on http://localhost:5173
+- `npm run dev`: dev server on http://localhost:5173. `/api` is proxied to :8080, so there is no CORS in dev.
 - `npm run build`: production build into `dist/`
 - `npm run lint`: oxlint (config in `.oxlintrc.json`)
-- No test runner yet. When one is added, document its command here.
+- `npm test`: Vitest, run once. `npm run test:watch` runs in watch mode.
+- Env (`.env.local`, see `.env.example`):
+  - `VITE_USE_MOCKS=true` answers API calls with MSW in the browser.
+  - `VITE_API_BASE_URL` is the API origin for production builds.
 
 ## Architecture
-- `src/main.jsx`: mounts `RouterProvider`.
-- `src/router.jsx`: all routes.
-  - Customer Portal (`CustomerLayout`, phone-first): `/`, `/return`, `/track/:returnId`
-  - Warehouse & Finance Ops (`StaffLayout`, sidebar): `/staff/warehouse`, `/staff/finance`, `/staff/manager`
-- `src/pages/<role>/`: one folder per persona (customer, warehouse, finance, manager).
-- `src/layouts/`: `CustomerLayout`, `StaffLayout`.
-- `src/components/`: shared UI (`Stepper`, `StatusTimeline`, `PagePlaceholder`, which is temporary and gets deleted once all pages are built).
-- `src/domain/returnStatus.js`: return state machine (`STATUS`, `TRANSITIONS`, `TIMELINE`, `canTransition`) and `FINANCE_APPROVAL_THRESHOLD_INR`.
-- `src/api/client.js`: `api(path, { method, body, idempotencyKey })` fetch wrapper. Base URL from `VITE_API_URL` (see `.env.example`).
-- `src/styles/index.css`: the only place colour values are defined.
+- `src/main.jsx`: starts MSW when mocks are on, then mounts `ErrorBoundary` › `QueryClientProvider` › `RouterProvider` + `Toaster`.
+- `src/router.jsx`: all routes. A route `errorElement` catches render errors.
+  - Public (`PublicLayout`, mobile-first header): `/`, `/return/new` (wizard), `/return/:returnId` (status), `/login`
+  - Staff (`StaffLayout`), each behind `<RequireRole roles=[…]>`: `/warehouse` (WAREHOUSE, MANAGER), `/finance` (FINANCE, MANAGER), `/manager` (MANAGER)
+- `src/auth/`:
+  - `session.js` stores `{token, role}` in memory, mirrored to sessionStorage.
+  - `useSession` is the React hook for it.
+  - `RequireRole` sends signed-out users to `/login?next=…`, and shows "no access" when the role is wrong.
+- `src/api/`:
+  - `client.js`: `request()` adds the bearer token and `Idempotency-Key`, and turns error responses into `ApiError{status, code, message}`. A 401 redirects to `/login`.
+  - `hooks.js`: the TanStack hooks and the JSDoc types for the contract.
+  - `queryClient.js`: sends API errors to the global toast. Calls that show their own errors set `meta: { silent: true }`.
+- `src/mocks/`: MSW handlers and data (browser worker plus a node server for tests). Staff mock logins are in `data.js`.
+- `src/components/ui/`: `Button`, `Input`/`Select`/`Textarea` (built on `Field`, which wires `aria-describedby`), `Card`, `Badge`, `StatusBadge`, `Alert`, `Spinner`, `EmptyState`. Also `StatusTimeline`, `ErrorBoundary`, and `toast/` (a store usable outside React, plus `Toaster`).
+- `src/pages/customer/return-wizard/`: the 4-step wizard.
+  - State lives in one `useReducer` (`wizardState.js`), so data survives Back.
+  - Steps are in `steps/`.
+  - Tests are in `__tests__/`.
+- `src/domain/`:
+  - `returnStatus.js`: the state machine.
+  - `returns.js`: reasons, refund methods, ineligibility badges and microcopy, photo limits.
+- `src/lib/format.js`: `formatINR(paise)`, date formatters, `cx()`.
+- `src/styles/index.css`: Tailwind `@theme` tokens. This is the only place colour values are defined.
+
+## Conventions
+- Money is integer paise everywhere. Display it only through `formatINR`.
+- JS + JSDoc, no TypeScript. Keep the JSDoc typedefs in `src/api/hooks.js` in sync with `docs/api-contract.md` and the mocks.
+- Every submit button uses `loading`/`disabled` plus a ref guard against double submits. Create-type POSTs send an `Idempotency-Key`.
+- Form errors go through `Field`, so they are tied to inputs with `aria-describedby`/`aria-invalid`.
+- The order lookup shows one generic failure message, never a hint about which field is wrong. A 429 has its own message.
+- Tests: Vitest + Testing Library + the MSW node server (`src/test/setup.js`). Render wizard steps with `renderStep()` from `src/test/renderWithProviders.jsx`.
 
 ## Return state machine (must match the backend)
 - REQUESTED → APPROVED | REJECTED
@@ -47,9 +72,11 @@ This file is the shared team reference. It is checked in. Personal preferences d
 
 ### Design philosophy
 - **Vibe:** clean, trustworthy, high-contrast operational utility (inspired by Stripe and Linear).
-- **Customer Portal** (`/`, `/return`, `/track/*`): airy white surfaces (`--bg-surface`), clear stepper progress, reassuring teal-emerald and slate tones. Must work at 375px wide.
-- **Warehouse & Finance Ops** (`/staff/*`): dense layouts on the cool-grey canvas (`--bg-canvas`) with crisp borders (`--border-subtle`) for fast scanning and A/B/C grading. Keyboard-first on the warehouse screen.
-- **Type:** IBM Plex Sans for UI, IBM Plex Mono for order IDs, return IDs and SKUs. Use `font-variant-numeric: tabular-nums` for INR amounts and table numbers.
+- **Customer Portal** (`/`, `/return`, `/track/*`): airy white surfaces (`--color-surface`), clear stepper progress, reassuring teal-emerald and slate tones. Must work at 375px wide.
+- **Warehouse & Finance Ops** (`/staff/*`): dense layouts on the cool-grey canvas (`--color-canvas`) with crisp borders (`--color-line`) for fast scanning and A/B/C grading. Keyboard-first on the warehouse screen.
+- **Type:** Inter (variable, self-hosted via `@fontsource-variable/inter`) for UI, IBM Plex Mono for order IDs, return IDs and SKUs. Use the `tabular` utility (`tabular-nums`) for INR amounts and table numbers.
+- **Tailwind:** the default palette is switched off (`--color-*: initial`). Tokens are used as utilities: `bg-primary`, `text-muted`, `border-line`, `border-line-strong`, `bg-danger-soft`, `text-ink`, `bg-canvas`, `bg-surface`, `bg-chart-1`.
+- **Touch targets:** interactive controls are at least 44px (`min-h-11` / `size-11`).
 
 ### Core brand tokens
 | Token | Value | Use |
@@ -65,15 +92,15 @@ This file is the shared team reference. It is checked in. Personal preferences d
 ### Neutral surfaces and text
 | Token | Value | Use |
 |---|---|---|
-| `--bg-canvas` | `#F8FAFC` slate 50 | App background (staff screens); reduces glare |
-| `--bg-surface` | `#FFFFFF` | Cards, modals, customer screens |
-| `--border-subtle` | `#E2E8F0` slate 200 | Dividers and card edges only (decorative, 1.2:1) |
-| `--border-strong` | `#64748B` slate 500 | Input, checkbox and radio outlines (4.8:1, meets the 3:1 rule for UI controls) |
-| `--text-primary` | `#0F172A` slate 900 | Body text, order IDs, INR amounts |
-| `--text-muted` | `#475569` slate 600 | Timestamps, SKUs, helper text |
+| `--color-canvas` | `#F8FAFC` slate 50 | App background (staff screens); reduces glare |
+| `--color-surface` | `#FFFFFF` | Cards, modals, customer screens |
+| `--color-line` | `#E2E8F0` slate 200 | Dividers and card edges only (decorative, 1.2:1) |
+| `--color-line-strong` | `#64748B` slate 500 | Input, checkbox and radio outlines (4.8:1, meets the 3:1 rule for UI controls) |
+| `--color-ink` | `#0F172A` slate 900 | Body text, order IDs, INR amounts |
+| `--color-muted` | `#475569` slate 600 | Timestamps, SKUs, helper text |
 
 ### Semantic status and grading tokens
-Each status has a foreground (`--status-*`) and a background tint (`--status-*-bg`).
+Each status has a foreground (`--color-<status>`) and a background tint (`--color-<status>-soft`), e.g. `text-warning bg-warning-soft`.
 
 | Token | Fg / bg | Applies to |
 |---|---|---|
@@ -85,7 +112,7 @@ Each status has a foreground (`--status-*`) and a background tint (`--status-*-b
 Grade B has no colour yet (see Known gaps). Until it is decided, show it with the secondary tokens plus its label.
 
 ### Manager dashboard chart palette (Okabe-Ito derived, colour-blind safe)
-Use in this order for category return rates, top reasons and cycle-time charts: `--chart-1` … `--chart-6`.
+Use in this order for category return rates, top reasons and cycle-time charts: `--color-chart-1` … `--color-chart-6`.
 1. `#0F766E` teal (5.5:1 on white)
 2. `#D97706` amber (3.2:1): fine for bars and lines, **never for text**
 3. `#2563EB` royal blue (5.2:1)
@@ -118,10 +145,9 @@ Use in this order for category return rates, top reasons and cycle-time charts: 
 - Editor settings stay out of the repo (`.vscode/*` is ignored except `extensions.json`).
 
 ## Known gaps (remove each line when resolved)
-- `src/styles/index.css` still uses the old wireframe palette and token names (`--bg`, `--ink`, `--accent`, …), plus a dark-mode block. It must be migrated to the tokens above.
 - No dark theme is specified. Do not add dark values until the team agrees on a palette that passes the same contrast checks.
 - Grade B has no assigned colour.
-- No backend, test runner or CI yet.
+- No CI pipeline yet. The real backend is not connected; screens run on MSW mocks.
 
 ## Keeping this file current (mandatory)
 - Update this file **in the same PR** as any change to commands, scripts, dependencies, routes or folder structure, design tokens, status enums or transitions, grading or refund rules, or team workflow.

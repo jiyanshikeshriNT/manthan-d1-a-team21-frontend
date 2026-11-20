@@ -1,11 +1,14 @@
-import { Link } from 'react-router'
+import { MapPinOff } from 'lucide-react'
+import EmptyState from '../components/ui/EmptyState'
+import Button from '../components/ui/Button'
 
 export default function NotFoundPage() {
   return (
-    <div className="stack">
-      <h1>Page not found</h1>
-      <p className="muted">Check the address, or go back to the start.</p>
-      <Link to="/" className="btn">Go to home</Link>
-    </div>
+    <EmptyState
+      icon={MapPinOff}
+      title="Page not found"
+      description="The link may be broken or the page may have moved."
+      action={<Button as="link" to="/">Go to home</Button>}
+    />
   )
 }
